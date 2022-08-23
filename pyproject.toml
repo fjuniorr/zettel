@@ -1,0 +1,8 @@
+[project]
+name = "zt"
+version = "0.1.0"
+description = "A package for notetaking inspired by the zettelkasten method"
+readme = "README.md"
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
