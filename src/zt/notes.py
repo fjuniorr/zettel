@@ -13,7 +13,7 @@ class Note():
         self.title = self.content.partition('\n')[0].replace('# ', '')
 
     def __repr__(self) -> str:
-        return f'{self.id} {self.title}'
+        return f'[{self.id}] {self.title}'
 
     def title(self):
         return self.title
