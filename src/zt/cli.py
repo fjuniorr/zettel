@@ -10,7 +10,8 @@ def main():
     notebook = Notebook('/Users/fjunior/Notebook/notes')
     note = notebook.get_note_by_title(args.title)
 
-    print(note.path)
+    if note is not None:
+        print(note.path)
 
 if __name__ == '__main__':
     main()

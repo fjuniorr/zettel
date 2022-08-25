@@ -21,4 +21,5 @@ class Notebook():
                 result = note
                 break
         # result = [note for note in self.notes.values() if title == note.title][0]
+        result = result if 'result' in locals() else None
         return result

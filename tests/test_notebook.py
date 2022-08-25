@@ -18,6 +18,10 @@ def test_get_note_by_title(notebook):
     note = notebook.get_note_by_title('python - mock multiple input calls')
     assert note.id == '20220822T155803'
 
+def test_get_note_by_title(notebook):
+    note = notebook.get_note_by_title('this note do not exist')
+    assert note is None
+
 def test_notes(notebook):
     note = Note(sorted(Path('tests/notebook').glob('*.md'), key = lambda x: x.stat().st_mtime, reverse = True)[0])
     assert True
