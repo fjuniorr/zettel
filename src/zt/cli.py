@@ -2,10 +2,10 @@ import argparse
 from .notebook import Notebook
 from zt import notebook
 
-def main():
+def main(argv=None):
     parser = argparse.ArgumentParser()
     parser.add_argument("title")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     notebook = Notebook('/Users/fjunior/Notebook/notes')
     note = notebook.get_note_by_title(args.title)

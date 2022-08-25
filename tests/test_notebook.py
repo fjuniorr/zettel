@@ -18,7 +18,7 @@ def test_get_note_by_title(notebook):
     note = notebook.get_note_by_title('python - mock multiple input calls')
     assert note.id == '20220822T155803'
 
-def test_get_note_by_title(notebook):
+def test_get_note_by_title_exists_false(notebook):
     note = notebook.get_note_by_title('this note do not exist')
     assert note is None
 
