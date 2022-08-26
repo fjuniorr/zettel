@@ -13,7 +13,11 @@ class Notebook:
         return(f'<Notebook at {self.dir}>')
 
     def read_notes(self):
-        return {Note(f).id:Note(f) for f in self.dir.glob('*.md')}
+        result = {}
+        for file in self.dir.glob('*.md'):
+            note = Note(file)
+            result[note.id] = note
+        return result
 
     def get_note_by_title(self, title):
         for note in self.notes.values():
