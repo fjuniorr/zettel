@@ -1,7 +1,7 @@
 from pathlib import Path
 from .notes import Note
 
-class Notebook():
+class Notebook:
     def __init__(self, dir):
         if Path(dir).is_dir():
             self.dir = Path(dir)
