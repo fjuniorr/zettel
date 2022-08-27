@@ -14,6 +14,15 @@ def test_not_directory_error():
     with pytest.raises(NotADirectoryError):
         notebook = Notebook('tests/notebook/notes')
 
+def test_read_notes_full_dir(notebook):
+    notes = list(notebook.notes)
+    assert sorted([id for id, note in notes]) == ['20220822T111909', '20220822T155803', '20220822T163828']
+
+def test_read_notes_specific_files():
+    notebook = Notebook('tests/notebook', notes = ['20220822T111909.md', '20220822T163828.md'])
+    notes = list(notebook.notes)
+    assert sorted([id for id, note in notes]) == ['20220822T111909', '20220822T163828']
+
 def test_get_note_by_title(notebook):
     note = notebook.get_note_by_title('python - mock multiple input calls')
     assert note.id == '20220822T155803'

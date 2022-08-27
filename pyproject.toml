@@ -1,6 +1,6 @@
 [project]
 name = "zt"
-version = "0.1.0"
+version = "0.1.0-9001"
 description = "A package for notetaking inspired by the zettelkasten method"
 readme = "README.md"
 [build-system]

@@ -1,6 +1,7 @@
 import argparse
 from .notebook import Notebook
 from zt import notebook
+import sys
 
 def main(argv=None):
     parser = argparse.ArgumentParser()
@@ -8,7 +9,12 @@ def main(argv=None):
     parser.add_argument('title')
     args = parser.parse_args(argv)
     
-    notebook = Notebook(args.dir)
+    if sys.stdin.isatty():
+        notebook = Notebook(args.dir)
+    else:
+        files = sys.stdin.read().splitlines()
+        notebook = Notebook(args.dir, notes = files)
+    
     note = notebook.get_note_by_title(args.title)
 
     if note is not None:
