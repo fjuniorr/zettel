@@ -12,14 +12,12 @@ class Notebook:
     def __repr__(self):
         return(f'<Notebook at {self.dir}>')
 
-    def read_notes(self):
-        return {
-            note.id:note
-            for note in [Note(f) for f in self.dir.glob('*.md')]
-        }
+    def read_notes(self):        
+        for note in (Note(f) for f in self.dir.glob('*.md')):
+            yield note.id, note
 
     def get_note_by_title(self, title):
-        for note in self.notes.values():
+        for note_id, note in self.notes:
             if title == note.title:
                 result = note
                 break
