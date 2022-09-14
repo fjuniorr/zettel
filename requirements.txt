@@ -1,8 +1,14 @@
 attrs==22.1.0
+build==0.8.0
+coverage==6.4.4
 iniconfig==1.1.1
 packaging==21.3
+pep517==0.13.0
 pluggy==1.0.0
 py==1.11.0
 pyparsing==3.0.9
 pytest==7.1.2
+pytest-cov==3.0.0
 tomli==2.0.1
+# Editable Git install with no remote (zt==0.1.0)
+-e /Users/fjunior/Projects/proj_zt
