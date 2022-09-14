@@ -14,9 +14,3 @@ class Note():
 
     def __repr__(self) -> str:
         return f'[{self.id}] {self.title}'
-
-    def title(self):
-        return self.title
-
-    def id(self):
-        return self.id
