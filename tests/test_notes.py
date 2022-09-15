@@ -1,4 +1,4 @@
-from zt.notes import Note
+from zettel.notes import Note
 
 def test_get_note_title():
     note = Note('tests/notebook/20220822T111909.md')

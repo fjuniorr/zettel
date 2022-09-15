@@ -1,6 +1,6 @@
 import argparse
 from .notebook import Notebook
-from zt import notebook
+from zettel import notebook
 import sys
 
 def main(argv=None):

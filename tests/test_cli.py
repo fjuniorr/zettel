@@ -1,6 +1,6 @@
 import pytest
 import io
-from zt.cli import main
+from zettel.cli import main
 
 def test_cli_get_note_by_title(capsys):
     main(['--dir', 'tests/notebook/', 'python - mock multiple input calls'])

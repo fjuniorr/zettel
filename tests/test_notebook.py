@@ -1,7 +1,7 @@
 import pytest
 from pathlib import Path
-from zt.notebook import Notebook
-from zt.notes import Note
+from zettel.notebook import Notebook
+from zettel.notes import Note
 
 @pytest.fixture
 def notebook():

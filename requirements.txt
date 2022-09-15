@@ -10,5 +10,3 @@ pyparsing==3.0.9
 pytest==7.1.2
 pytest-cov==3.0.0
 tomli==2.0.1
-# Editable Git install with no remote (zt==0.1.0)
--e /Users/fjunior/Projects/proj_zt
