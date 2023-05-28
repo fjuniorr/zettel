@@ -1,10 +1,9 @@
-from .notes import Note
 import re
 
 class Task():
 
-    def __init__(self, note_id, line):
-        self.task = self.parse_task(note_id, line)
+    def __init__(self, line):
+        self.task = self.parse_task(line)
 
     def parse_duration(self, duration_str):
         parts = list(map(int, duration_str.split(':')))
@@ -35,7 +34,7 @@ class Task():
         result = 'Done 'if checkbox == '- [x]' else 'Todo'
         return result
 
-    def parse_task(self, note_id, task):
+    def parse_task(self, task):
         status = task[0:5]
         body = task[6:].strip()
 
@@ -51,11 +50,9 @@ class Task():
         title = tags_re.sub('', body).strip()
 
         output = {
-            "id": note_id,
             "title": title,
             "status": self.extract_status(status),
-            "created_at": self.extract_date(note_id),
-            "tags": tags
+            "tags": tags,
         }
 
         return output

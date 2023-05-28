@@ -31,6 +31,6 @@ class Notebook:
     def get_tasks(self):
         result = []
         for note_id, note in self.notes:
-            tasks = [Task(note_id, line) for line in note.content.split('\n') if '@clock' in line]
+            tasks = [Task(line) for line in note.content.split('\n') if '@clock' in line]
             result.extend(tasks)
         return result
