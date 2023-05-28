@@ -37,6 +37,7 @@ class Task():
         options = {
                 "- [ ]": 'open',
                 "- [!]": 'focus',
+                "- [@]": 'in progress',
                 "- [x]": 'closed',
                 "- [?]": 'someday',
                 "- [w]": 'waiting',
@@ -49,18 +50,27 @@ class Task():
             result = None
         return result
 
+    def split_task(self, line):
+        match = re.search(r'(- \[.\])', line)
+        if match:
+            start = match.start()
+            matched = match.group(0)
+            rest_of_line = line[start+len(matched):].strip()
+            return [matched, rest_of_line]
+        else:
+            return None
+
     def parse_task(self, task):
-        status = task[0:5]
-        body = task[6:].strip()
+        status, body = self.split_task(task)
 
         tags_re = re.compile(r'@([a-zA-Z0-9_]+)(?:\((.*?)\))?')
         matches = tags_re.findall(body)
 
         tags = {key: value if value != '' else True for key, value in matches}
 
-        durations = re.split('[,;]', tags['clock'])
-
-        tags['clock'] = self.format_duration(sum(self.parse_duration(d) for d in durations))
+        if tags.get('clock'):
+          durations = re.split('[,;]', tags['clock'])
+          tags['clock'] = self.format_duration(sum(self.parse_duration(d) for d in durations))
 
         title = tags_re.sub('', body).strip()
 

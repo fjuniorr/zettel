@@ -2,6 +2,10 @@ import typer
 from .notes import Note
 from .tasks import Task
 from rich.pretty import pprint
+import re
+import yaml
+from rich import print
+from rich.syntax import Syntax
 
 app = typer.Typer()
 
@@ -23,9 +27,20 @@ def tasks(note: str,
     """
     Download data packages (descriptor and resources data files) listed in package.sources and saves into datapackages/
     """
+    yaml_string = """
+    title: Apresentar custo da divulgação fonte STN PdT (360 h / R$ 60 mil)
+    status: x
+    tags:
+        nirvana: null
+        activity: communication
+        clock: 14:48
+    """
+
+    # Create a Syntax instance and pretty-print it
+    syntax = Syntax(yaml_string, "yaml")
     note = Note(note)
-    tasks = [Task(line).task for line in note.content.split('\n') if '@clock' in line]
+    tasks = [Task(line).task for line in note.content.split('\n') if re.search(r'- \[.\] ', line)]
     if status == 'all':
-        pprint(tasks, expand_all=True)
+        print(yaml.dump(tasks))
     else:
-        pprint([task for task in tasks if task['status'] == status], expand_all=True)
+        print(yaml.dump([task for task in tasks if task['status'] == status]))
