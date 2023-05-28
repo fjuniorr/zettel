@@ -1,5 +1,6 @@
 from pathlib import Path
 from .notes import Note
+from .tasks import Task
 
 class Notebook:
     def __init__(self, dir, notes=None):
@@ -25,4 +26,11 @@ class Notebook:
                 break
         # result = [note for note in self.notes.values() if title == note.title][0]
         result = result if 'result' in locals() else None
+        return result
+    
+    def get_tasks(self):
+        result = []
+        for note_id, note in self.notes:
+            tasks = [Task(note_id, line) for line in note.content.split('\n') if '@clock' in line]
+            result.extend(tasks)
         return result
