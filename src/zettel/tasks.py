@@ -34,7 +34,19 @@ class Task():
             return None
 
     def extract_status(self, checkbox):
-        result = 'closed' if checkbox == '- [x]' else 'open'
+        options = {
+                "- [ ]": 'open',
+                "- [!]": 'focus',
+                "- [x]": 'closed',
+                "- [?]": 'someday',
+                "- [w]": 'waiting',
+            }
+        
+        option = checkbox  # replace this with the actual option
+        if option in options:
+            result = options[option]
+        else:
+            result = None
         return result
 
     def parse_task(self, task):
