@@ -2,7 +2,15 @@
 name = "zettel"
 version = "0.0.0-9001"
 description = "A package for notetaking inspired by the zettelkasten method"
+dependencies = [
+  'typer',
+  'rich'
+]
 readme = "README.md"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[project.scripts]
+zt = "zettel.cli:app"

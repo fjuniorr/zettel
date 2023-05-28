@@ -5,6 +5,9 @@ class Task():
     def __init__(self, line):
         self.task = self.parse_task(line)
 
+    def __repr__(self) -> str:
+        return str(self.task)
+
     def parse_duration(self, duration_str):
         parts = list(map(int, duration_str.split(':')))
         if len(parts) == 3:  # hh:mm:ss format
@@ -31,7 +34,7 @@ class Task():
             return None
 
     def extract_status(self, checkbox):
-        result = 'Done 'if checkbox == '- [x]' else 'Todo'
+        result = 'closed' if checkbox == '- [x]' else 'open'
         return result
 
     def parse_task(self, task):

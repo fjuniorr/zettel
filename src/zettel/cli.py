@@ -1,24 +1,31 @@
-import argparse
-from .notebook import Notebook
-from zettel import notebook
-import sys
+import typer
+from .notes import Note
+from .tasks import Task
+from rich.pretty import pprint
 
-def main(argv=None):
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--dir')
-    parser.add_argument('title')
-    args = parser.parse_args(argv)
-    
-    if sys.stdin.isatty():
-        notebook = Notebook(args.dir)
+app = typer.Typer()
+
+def validate_option(value: str):
+    allowed_values = {"all", "open", "closed"}
+    if value not in allowed_values:
+        raise typer.BadParameter(f"Invalid option. Allowed options are {', '.join(allowed_values)}")
+    return value
+
+@app.callback()
+def callback():
+    """
+    Plaintext personal information management.
+    """
+
+@app.command()
+def tasks(note: str,
+          status: str = typer.Option(default="open", help="One of: all|open|closed", callback=validate_option)):
+    """
+    Download data packages (descriptor and resources data files) listed in package.sources and saves into datapackages/
+    """
+    note = Note(note)
+    tasks = [Task(line).task for line in note.content.split('\n') if '@clock' in line]
+    if status == 'all':
+        pprint(tasks, expand_all=True)
     else:
-        files = sys.stdin.read().splitlines()
-        notebook = Notebook(args.dir, notes = files)
-    
-    note = notebook.get_note_by_title(args.title)
-
-    if note is not None:
-        print(note.path)
-
-if __name__ == '__main__':
-    main()
+        pprint([task for task in tasks if task['status'] == status], expand_all=True)
