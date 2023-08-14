@@ -35,12 +35,11 @@ class Task():
 
     def extract_status(self, checkbox):
         options = {
-                "- [ ]": 'open',
+                "- [ ]": 'next',
                 "- [!]": 'focus',
                 "- [@]": 'in progress',
-                "- [x]": 'closed',
                 "- [?]": 'someday',
-                "- [w]": 'waiting',
+                "- [x]": 'done',
             }
         
         option = checkbox  # replace this with the actual option
@@ -81,3 +80,6 @@ class Task():
         }
 
         return output
+    
+    def parse_clock(self, task):
+        pass
