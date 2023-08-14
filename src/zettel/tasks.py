@@ -1,4 +1,9 @@
 import re
+from datetime import datetime, timedelta
+import logging
+import humanize
+
+logger = logging.getLogger()
 
 class Task():
 
@@ -67,19 +72,43 @@ class Task():
 
         tags = {key: value if value != '' else True for key, value in matches}
 
-        if tags.get('clock'):
-          durations = re.split('[,;]', tags['clock'])
-          tags['clock'] = self.format_duration(sum(self.parse_duration(d) for d in durations))
-
+        if 'clock' in tags.keys():
+            tags['clock'] = self.parse_clock(tags['clock'])
+            task_duration = humanize.precisedelta(sum([session['duration'] for session in tags['clock']], timedelta()), suppress=['seconds'])
+        else:
+            tags['clock'] = None
+            task_duration = None
+        
         title = tags_re.sub('', body).strip()
 
         output = {
             "title": title,
+            "open": False if self.extract_status(status) in ['done'] else True,
             "status": self.extract_status(status),
+            "duration": task_duration,
             "tags": tags,
         }
 
         return output
     
-    def parse_clock(self, task):
-        pass
+    def parse_clock(self, sessions):
+        result = []
+        sessions = re.split('[,;]', sessions)
+        for session in sessions:
+            try:
+                start, end = session.split('/')
+                start = start.strip()
+                end = end.strip()
+                duration = timedelta(seconds=self.parse_duration(end))
+                start_ts = datetime.strptime(start, '%Y%m%dT%H%M%S')
+                end_ts = start_ts + duration
+            except ValueError:
+                end = session
+                duration = timedelta(seconds=self.parse_duration(end))
+                start_ts = None
+                end_ts = None
+            
+            result.append({'start': start_ts, 'end': end_ts, 'duration': duration})
+            # if duration.seconds != (end_ts - start_ts).total_seconds():
+            #     logger.warning('Duration calculation failed...')
+        return result
