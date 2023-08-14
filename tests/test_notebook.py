@@ -17,7 +17,7 @@ def test_not_directory_error():
 
 def test_read_notes_full_dir(notebook):
     notes = list(notebook.notes)
-    assert sorted([id for id, note in notes]) == ['20220822T111909', '20220822T155803', '20220822T163828', '20220913T211650']
+    assert sorted([id for id, note in notes]) == ['20220822T111909', '20220822T155803', '20220822T163828', '20220913T211650', 'daily-20230528']
 
 def test_read_notes_specific_files():
     notebook = Notebook('tests/notebook', notes = ['20220822T111909.md', '20220822T163828.md'])
