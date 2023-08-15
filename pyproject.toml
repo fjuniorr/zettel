@@ -1,12 +1,13 @@
 [project]
 name = "zettel"
-version = "0.0.0-9001"
+version = "0.0.0-9002"
 description = "A package for notetaking inspired by the zettelkasten method"
 dependencies = [
   'typer',
   'rich',
   'pyyaml',
-  'humanize'
+  'humanize',
+  'krfzf-py'
 ]
 readme = "README.md"
 
