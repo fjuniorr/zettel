@@ -70,7 +70,7 @@ class Task():
         tags_re = re.compile(r'@([a-zA-Z0-9_]+)(?:\((.*?)\))?')
         matches = tags_re.findall(body)
 
-        tags = {key: value if value != '' else True for key, value in matches}
+        tags = {key: value if value != '' else True for key, value in matches if key != 'todo'}
 
         if 'clock' in tags.keys():
             tags['clock'] = self.parse_clock(tags['clock'])

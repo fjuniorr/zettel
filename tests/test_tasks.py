@@ -56,7 +56,7 @@ def test_task_without_start_clock():
     assert task.task == expected
 
 def test_task_without_clock():
-    task = Task('- [ ] Levantamento técnico inicial @nirvana @activity(research)')
+    task = Task('#  - [ ] Levantamento técnico inicial @nirvana @activity(research)')
     
     expected = {'title': 'Levantamento técnico inicial', 
                 'open': True, 
