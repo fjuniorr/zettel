@@ -42,7 +42,8 @@ class Task():
         options = {
                 "- [ ]": 'next',
                 "- [!]": 'focus',
-                "- [@]": 'in progress',
+                "- [@]": 'wip',
+                "- [~]": 'later',
                 "- [?]": 'someday',
                 "- [x]": 'done',
             }

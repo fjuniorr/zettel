@@ -49,8 +49,8 @@ class Notebook:
                 matches.append(match_data)
 
         
-        status_order = {'focus': 0, 'in progress': 1, 'next': 2, 'someday': 3, 'done': 4}
-        sorted_tasks = sorted(matches, key=lambda x: status_order.get(x['task'].task['status'], 5))
+        status_order = {'focus': 0, 'in pro': 1, 'next': 2, 'later': 3, 'someday': 4, 'done': 5}
+        sorted_tasks = sorted(matches, key=lambda x: status_order.get(x['task'].task['status'], 6))
         
         tasks_fmt = [f"{task['task'].task['title']} [#{task['task'].task['status']}]" for task in sorted_tasks if task['task'].task['open']]
         result = fzf_prompt(tasks_fmt, reversed_layout=True, print_query=True, match_exact=True)
