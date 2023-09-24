@@ -5,6 +5,7 @@ from .notebook import Notebook
 from rich.pretty import pprint
 from pathlib import Path
 from typing_extensions import Annotated
+from .fzf import ss
 
 app = typer.Typer()
 
@@ -36,3 +37,5 @@ def find(title: Annotated[str, typer.Argument],
     note = notebook.get_note_by_title(title)
     if note is not None:
         print(note.path)
+
+app.command(name="search")(ss)
