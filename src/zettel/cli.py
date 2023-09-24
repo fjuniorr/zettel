@@ -27,3 +27,12 @@ def tasks(dir: Annotated[Path, typer.Argument(help='Notebook folder')] = Path('.
     """
     notebook = Notebook(dir)
     notebook.get_tasks()
+
+@app.command()
+def find(title: Annotated[str, typer.Argument],
+         dir: Annotated[Path, typer.Option(help='Notebook folder')] = Path('.')
+         ):
+    notebook = Notebook(dir)
+    note = notebook.get_note_by_title(title)
+    if note is not None:
+        print(note.path)
