@@ -1,6 +1,6 @@
 from pathlib import Path
 from .notes import Note
-from .tasks import Task
+from .tasks import Task, TASK_STATUS
 from .utils import unpack_fzf_prompt
 import subprocess
 import json
@@ -34,7 +34,7 @@ class Notebook:
         return result
     
     def get_tasks(self):
-        command = ["rg", "--json", "@todo", self.dir]
+        command = ["rg", "--json", TASK_STATUS, self.dir]
         result = subprocess.run(command, stdout=subprocess.PIPE, text=True)
 
         matches = []
@@ -48,11 +48,23 @@ class Notebook:
                 }
                 matches.append(match_data)
 
-        
-        status_order = {'focus': 0, 'in pro': 1, 'next': 2, 'later': 3, 'someday': 4, 'done': 5}
+        status_order = {
+            '@focus': 0, 
+            '@wip': 10, 
+            '@project': 20,
+            '@todo': 30, 
+            '@next': 40, 
+            '@review': 50, 
+            '@waiting': 60, 
+            '@later': 70, 
+            '@someday': 80,
+            '@done': 90,
+            '@wontfix': 99
+        }
         sorted_tasks = sorted(matches, key=lambda x: status_order.get(x['task'].task['status'], 6))
-        
-        tasks_fmt = [f"{task['task'].task['title']} [#{task['task'].task['status']}]" for task in sorted_tasks if task['task'].task['open']]
+        with open('data.json', 'w') as fs:
+            json.dump(sorted_tasks, fs, indent=2)
+        tasks_fmt = [f"{task['task'].task['title']} [{task['task'].task['status']}]" for task in sorted_tasks if task['task'].task['open']]
         result = fzf_prompt(tasks_fmt, reversed_layout=True, print_query=True, match_exact=True)
 
         task_path = None

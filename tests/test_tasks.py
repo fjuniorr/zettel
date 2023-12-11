@@ -21,10 +21,11 @@ def test_tasks(notebook):
                              {'start': None, 'end': None, 'duration': datetime.timedelta(seconds=7175)}
                          ], 'activity': 'research'}}, 
                 ]
+    breakpoint()
     assert [task.task for task in notebook.get_tasks()] == expected
 
 def test_task():
-    task = Task('- [x] Levantamento técnico inicial @nirvana @clock(20230814T155459/09:14, 20230815T155503/01:59:35) @activity(research)')
+    task = Task('- @done Levantamento técnico inicial @nirvana @clock(20230814T155459/09:14, 20230815T155503/01:59:35) @activity(research)')
     
     expected = {'title': 'Levantamento técnico inicial', 
                 'open': False, 
@@ -40,7 +41,7 @@ def test_task():
     assert task.task == expected
 
 def test_task_without_start_clock():
-    task = Task('- [x] Levantamento técnico inicial @nirvana @clock(09:14, 20230815T155503/01:59:35) @activity(research)')
+    task = Task('- @done Levantamento técnico inicial @nirvana @clock(09:14, 20230815T155503/01:59:35) @activity(research)')
     
     expected = {'title': 'Levantamento técnico inicial', 
                 'open': False, 
@@ -56,7 +57,7 @@ def test_task_without_start_clock():
     assert task.task == expected
 
 def test_task_without_clock():
-    task = Task('#  - [ ] Levantamento técnico inicial @nirvana @activity(research)')
+    task = Task('#  - @todo Levantamento técnico inicial @nirvana @activity(research)')
     
     expected = {'title': 'Levantamento técnico inicial', 
                 'open': True, 

@@ -5,6 +5,8 @@ import humanize
 
 logger = logging.getLogger()
 
+TASK_STATUS = "@project|@wip|@focus|@todo|@next|@later|@someday|@waiting|@review|@wonftix|@done"
+
 class Task():
 
     def __init__(self, line):
@@ -56,12 +58,11 @@ class Task():
         return result
 
     def split_task(self, line):
-        match = re.search(r'(- \[.\])', line)
+        pattern = re.compile(rf'- ({TASK_STATUS}) (.*)')
+        match = pattern.match(line)
         if match:
-            start = match.start()
-            matched = match.group(0)
-            rest_of_line = line[start+len(matched):].strip()
-            return [matched, rest_of_line]
+            status, task = match.groups()
+            return [status, task]
         else:
             return None
 
@@ -71,7 +72,7 @@ class Task():
         tags_re = re.compile(r'@([a-zA-Z0-9_]+)(?:\((.*?)\))?')
         matches = tags_re.findall(body)
 
-        tags = {key: value if value != '' else True for key, value in matches if key != 'todo'}
+        tags = {key: value if value != '' else True for key, value in matches}
 
         if 'clock' in tags.keys():
             tags['clock'] = self.parse_clock(tags['clock'])
@@ -84,8 +85,8 @@ class Task():
 
         output = {
             "title": title,
-            "open": False if self.extract_status(status) in ['done'] else True,
-            "status": self.extract_status(status),
+            "open": False if status in ['@done', '@wonftix'] else True,
+            "status": status,
             "duration": task_duration,
             "tags": tags,
         }
