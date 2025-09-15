@@ -2,6 +2,7 @@ from pathlib import Path
 from fzf import fzf_prompt
 from datetime import datetime
 import os
+import subprocess
 
 class Note():
     def __init__(self, path):
@@ -44,33 +45,49 @@ def unpack_fzf_prompt(prompt):
     else:
         return prompt.split('\n')
 
+def copy_to_clipboard(text):
+    try:
+        subprocess.run(['pbcopy'], input=text.encode(), check=True)
+        return True
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        try:
+            subprocess.run(['xclip', '-selection', 'clipboard'], input=text.encode(), check=True)
+            return True
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            return False
+
 def ss():
     home = Path('~')
-
     notebook = Path(home.expanduser(), 'Notebook/')
 
-    result = fzf_prompt(get_titles(notebook),
-            keybinds = f'f2:execute-silent(subl $(zt find --dir {notebook} {{}}))',
-            reversed_layout=True,
-            print_query=True,
-            match_exact=True,
-            preview_window_settings = 'down:60%',
-            preview=f'zt find --dir {notebook} {{}} | xargs glow --style dark')
+    while True:
+        result = fzf_prompt(get_titles(notebook),
+                keybinds = f'f2:execute-silent(subl $(zt find --dir {notebook} {{}}))',
+                reversed_layout=True,
+                print_query=True,
+                match_exact=True,
+                preview_window_settings = 'down:60%',
+                preview=f'zt find --dir {notebook} {{}} | xargs glow --style dark')
 
-    note_id = None
-
-    query, note_title = unpack_fzf_prompt(result)
-
-    for note in get_notes(notebook):
-        if note_title and (note_title == note.title):
-            note_id = note.id
+        if not result:
             break
 
-    if not note_title and query:
-        note_id = datetime.now().strftime('%Y%m%dT%H%M%S')
-        path = Path(notebook, f'{note_id}.md')
-        with open(path, 'x') as file:
-            file.write(f'# {query.lower()}\n\n')
+        note_id = None
+        query, note_title = unpack_fzf_prompt(result)
 
-    if note_id:
-        print(note_id)
+        for note in get_notes(notebook):
+            if note_title and (note_title == note.title):
+                note_id = note.id
+                break
+
+        if not note_title and query:
+            note_id = datetime.now().strftime('%Y%m%dT%H%M%S')
+            path = Path(notebook, f'{note_id}.md')
+            with open(path, 'x') as file:
+                file.write(f'# {query.lower()}\n\n')
+
+        if note_id:
+            if copy_to_clipboard(note_id):
+                print(f"Copied {note_id} to clipboard")
+            else:
+                print(f"Note ID: {note_id} (clipboard copy failed)")
