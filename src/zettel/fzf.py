@@ -5,6 +5,9 @@ import os
 import subprocess
 from urllib.parse import quote
 
+COPY_KEYS = {"ctrl-c"}
+ACCEPTED_KEYS = COPY_KEYS | {"enter"}
+
 
 class Note:
     def __init__(self, path):
@@ -45,11 +48,21 @@ def get_titles(path):
 
 def unpack_fzf_prompt(prompt):
     if not prompt:
-        return (None, None)
-    elif len(prompt.split("\n")) == 1:
-        return (prompt, None)
-    else:
-        return prompt.split("\n")
+        return (None, None, None)
+
+    lines = prompt.split("\n")
+    key = None
+
+    for index, line in enumerate(list(lines[:2])):
+        if line in ACCEPTED_KEYS:
+            key = line
+            lines.pop(index)
+            break
+
+    query = lines[0] if lines else None
+    note_title = lines[1] if len(lines) > 1 and lines[1] else None
+
+    return (key, query, note_title)
 
 
 def copy_to_clipboard(text):
@@ -79,13 +92,13 @@ def ss():
             match_exact=True,
             preview_window_settings="down:60%",
             preview=f"zt find --dir {notebook} {{}} | xargs glow --style dark",
+            expect_keys="enter,ctrl-c",
+            header="Enter opens in Obsidian; F2 opens in Sublime Text, ctrl+c copy note wikilink",
         )
 
-        if not result:
-            break
-
+        key_pressed, query, note_title = unpack_fzf_prompt(result)
         note_id = None
-        query, note_title = unpack_fzf_prompt(result)
+        copy_requested = key_pressed in COPY_KEYS
 
         for note in get_notes(notebook):
             if note_title and (note_title == note.title):
@@ -99,17 +112,24 @@ def ss():
             params = [
                 ("vault", "510b22d0827fd8cf"),
                 ("filename", note_id),
-                ("openmode", "split"),
+                ("openmode", "tab"),
                 ("data", encoded_content),
             ]
         elif note_id:
             params = [
                 ("vault", "510b22d0827fd8cf"),
                 ("filename", note_id),
-                ("openmode", "split"),
+                ("openmode", "tab"),
             ]
         else:
             params = []
+
+        if copy_requested and note_id:
+            if copy_to_clipboard(f"[[{note_id}|{note.title}]]"):
+                print(f"Copied {note_id} to clipboard")
+            else:
+                print(f"Note ID: {note_id} (clipboard copy failed)")
+            continue
 
         if params:
             encoded_parts = []
@@ -122,7 +142,3 @@ def ss():
                 encoded_parts.append(f"{encoded_key}={encoded_value}")
             obsidian_url = f"obsidian://adv-uri?{'&'.join(encoded_parts)}"
             subprocess.run(["open", obsidian_url])
-            # if copy_to_clipboard(note_id):
-            #     print(f"Copied {note_id} to clipboard")
-            # else:
-            #     print(f"Note ID: {note_id} (clipboard copy failed)")
