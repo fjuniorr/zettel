@@ -3,6 +3,7 @@ from fzf import fzf_prompt
 from datetime import datetime
 import os
 import subprocess
+from urllib.parse import quote
 
 
 class Note:
@@ -93,12 +94,33 @@ def ss():
 
         if not note_title and query:
             note_id = datetime.now().strftime("%Y%m%dT%H%M%S")
-            path = Path(notebook, f"{note_id}.md")
-            with open(path, "x") as file:
-                file.write(f"# {query.lower()}\n\n")
+            content = f"# {query.lower()}\n\n"
+            encoded_content = quote(content, safe="")
+            params = [
+                ("vault", "510b22d0827fd8cf"),
+                ("filename", note_id),
+                ("openmode", "split"),
+                ("data", encoded_content),
+            ]
+        elif note_id:
+            params = [
+                ("vault", "510b22d0827fd8cf"),
+                ("filename", note_id),
+                ("openmode", "split"),
+            ]
+        else:
+            params = []
 
-        if note_id:
-            obsidian_url = f"obsidian://open?vault=510b22d0827fd8cf&file={note_id}"
+        if params:
+            encoded_parts = []
+            for key, value in params:
+                encoded_key = quote(str(key), safe="")
+                if key == "data":
+                    encoded_value = value
+                else:
+                    encoded_value = quote(str(value), safe="")
+                encoded_parts.append(f"{encoded_key}={encoded_value}")
+            obsidian_url = f"obsidian://adv-uri?{'&'.join(encoded_parts)}"
             subprocess.run(["open", obsidian_url])
             # if copy_to_clipboard(note_id):
             #     print(f"Copied {note_id} to clipboard")
