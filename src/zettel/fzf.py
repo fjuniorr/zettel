@@ -5,6 +5,8 @@ import os
 import subprocess
 from urllib.parse import quote
 
+import frontmatter
+
 COPY_KEYS = {"ctrl-c"}
 ACCEPTED_KEYS = COPY_KEYS | {"enter"}
 
@@ -17,8 +19,9 @@ class Note:
             self.content = content
         except UnicodeDecodeError as err:
             self.content = str(err)
+        self._frontmatter_post = self._parse_frontmatter(self.content)
         self.id = os.path.splitext(os.path.basename(path))[0]
-        self.title = self.content.partition("\n")[0].replace("# ", "")
+        self.title = self._extract_title() or self.id
 
     def __repr__(self) -> str:
         return f"{self.id} {self.title}"
@@ -28,6 +31,50 @@ class Note:
 
     def id(self):
         return self.id
+
+    def _extract_title(self):
+        title_from_metadata = self._title_from_metadata(self._frontmatter_post)
+        if title_from_metadata:
+            return title_from_metadata
+
+        header_source = (
+            self._frontmatter_post.content
+            if getattr(self._frontmatter_post, "content", None)
+            else self.content
+        )
+        return self._title_from_first_header(header_source)
+
+    @staticmethod
+    def _parse_frontmatter(content):
+        try:
+            return frontmatter.loads(content)
+        except Exception:
+            return None
+
+    @staticmethod
+    def _title_from_metadata(post):
+        if not post:
+            return None
+
+        title = post.metadata.get("title") if isinstance(post.metadata, dict) else None
+        if isinstance(title, str):
+            stripped = title.strip()
+            return stripped or None
+
+        return None
+
+    @staticmethod
+    def _title_from_first_header(content):
+        first_line = content.partition("\n")[0]
+        if not first_line:
+            return None
+
+        stripped = first_line.lstrip()
+        if not stripped.startswith("#"):
+            return None
+
+        header_text = stripped.lstrip("#").strip()
+        return header_text or None
 
 
 def get_files(path):
