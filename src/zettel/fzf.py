@@ -212,12 +212,14 @@ def ss():
                 ("vault", "510b22d0827fd8cf"),
                 ("filename", note_id),
                 ("openmode", "tab"),
+                ("viewmode", "source"),
                 ("data", encoded_content),
             ]
         elif note_id:
             params = [
                 ("vault", "510b22d0827fd8cf"),
                 ("filename", note_id),
+                ("viewmode", "source"),
                 ("openmode", "tab"),
             ]
         else:
