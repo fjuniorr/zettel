@@ -7,7 +7,7 @@ from urllib.parse import quote
 
 import frontmatter
 
-COPY_KEYS = {"ctrl-c"}
+COPY_KEYS = {"ctrl-x"}
 ACCEPTED_KEYS = COPY_KEYS | {"enter"}
 
 
@@ -191,8 +191,8 @@ def ss():
             match_exact=True,
             preview_window_settings="down:60%",
             preview=f"zt find --dir {notebook} {{}} | xargs glow --style dark",
-            expect_keys="enter,ctrl-c",
-            header="Enter opens in Obsidian; F2 opens in Sublime Text, ctrl+c copy note wikilink",
+            expect_keys="enter,ctrl-x",
+            header="(enter: Obsidian; f2: Sublime Text, ctrl+x: wikilink)",
         )
 
         key_pressed, query, note_title = unpack_fzf_prompt(result)
