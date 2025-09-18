@@ -8,8 +8,7 @@ dependencies = [
   'pyyaml',
   'humanize',
   'krfzf-py',
-  'python-frontmatter',
-  'build',
+  'python-frontmatter'
 ]
 readme = "README.md"
 
