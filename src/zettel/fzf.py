@@ -13,18 +13,22 @@ ACCEPTED_KEYS = COPY_KEYS | {"enter"}
 
 class Note:
     def __init__(self, path):
+        self.path = Path(path)
+
         try:
-            with open(path, "r") as f:
+            with open(self.path, "r") as f:
                 content = f.read()
             self.content = content
         except UnicodeDecodeError as err:
             self.content = str(err)
         self._frontmatter_post = self._parse_frontmatter(self.content)
-        self.id = os.path.splitext(os.path.basename(path))[0]
+        self.id = os.path.splitext(os.path.basename(self.path))[0]
         self.title = self._extract_title() or self.id
+        self.tags = self._extract_tags(self._frontmatter_post)
+        self.display_title = self._format_display_title(self.title, self.tags)
 
     def __repr__(self) -> str:
-        return f"{self.id} {self.title}"
+        return f"{self.id} {self.display_title}"
 
     def title(self):
         return self.title
@@ -64,6 +68,54 @@ class Note:
         return None
 
     @staticmethod
+    def _extract_tags(post):
+        if post is None or not isinstance(post.metadata, dict):
+            return []
+
+        raw_tags = post.metadata.get("tags")
+        if not raw_tags:
+            return []
+
+        if isinstance(raw_tags, str):
+            raw_string = raw_tags.strip()
+            if not raw_string:
+                return []
+            if "," in raw_string:
+                candidates = [part.strip() for part in raw_string.split(",")]
+            else:
+                candidates = [raw_string]
+        elif isinstance(raw_tags, (list, tuple, set)):
+            candidates = list(raw_tags)
+        else:
+            return []
+
+        tags = []
+        for tag in candidates:
+            if isinstance(tag, str):
+                stripped = tag.strip()
+                if stripped:
+                    normalized = stripped.lstrip("#")
+                    if normalized:
+                        tags.append(normalized)
+
+        deduped = []
+        seen = set()
+        for tag in tags:
+            if tag not in seen:
+                deduped.append(tag)
+                seen.add(tag)
+
+        return deduped
+
+    @staticmethod
+    def _format_display_title(title, tags):
+        if tags:
+            formatted_tags = ", ".join(f"#{tag}" for tag in tags)
+            return f"{title} [{formatted_tags}]"
+
+        return title
+
+    @staticmethod
     def _title_from_first_header(content):
         first_line = content.partition("\n")[0]
         if not first_line:
@@ -90,7 +142,7 @@ def get_notes(path):
 
 def get_titles(path):
     for note in get_notes(path):
-        yield note.title
+        yield note.display_title
 
 
 def unpack_fzf_prompt(prompt):
@@ -148,7 +200,7 @@ def ss():
         copy_requested = key_pressed in COPY_KEYS
 
         for note in get_notes(notebook):
-            if note_title and (note_title == note.title):
+            if note_title and (note_title == note.display_title):
                 note_id = note.id
                 break
 

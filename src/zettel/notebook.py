@@ -12,26 +12,57 @@ class Notebook:
         if not Path(dir).is_dir():
             raise NotADirectoryError(f'{dir} is not a directory.') 
         self.dir = Path(dir)
-        if notes:
-            self.notes = self.read_notes([Path(self.dir, note) for note in notes])
-        else:
-            self.notes = self.read_notes(self.dir.glob('*.md'))
+        files = (
+            [Path(self.dir, note) for note in notes]
+            if notes
+            else list(self.dir.glob('*.md'))
+        )
+        self.notes = self.read_notes(files)
     
     def __repr__(self):
         return(f'<Notebook at {self.dir}>')
 
     def read_notes(self, files):
-        for note in (Note(f) for f in files):
-            yield note.id, note
+        return [(note.id, note) for note in (Note(f) for f in files)]
 
     def get_note_by_title(self, title):
-        for note_id, note in self.notes:
-            if title == note.title:
-                result = note
-                break
-        # result = [note for note in self.notes.values() if title == note.title][0]
-        result = result if 'result' in locals() else None
-        return result
+        if not title:
+            return None
+
+        display_match = self._match_note(lambda note: title == getattr(note, "display_title", note.title))
+        if display_match:
+            return display_match
+
+        normalized_query = self._normalize_display_title(title)
+        if normalized_query is None:
+            return None
+
+        return self._match_note(lambda note: normalized_query == note.title)
+
+    def _match_note(self, predicate):
+        for _, note in self.notes:
+            if predicate(note):
+                return note
+        return None
+
+    @staticmethod
+    def _normalize_display_title(title):
+        trimmed = title.strip()
+        if not trimmed:
+            return None
+
+        marker = " [#"
+        if marker not in trimmed or not trimmed.endswith("]"):
+            return trimmed
+
+        base, _, tag_section = trimmed.partition(" [")
+        tag_body = tag_section[:-1]
+        tags = [fragment.strip() for fragment in tag_body.split(",") if fragment.strip()]
+
+        if tags and all(tag.startswith("#") for tag in tags):
+            return base
+
+        return trimmed
     
     def get_tasks(self):
         command = ["rg", "--json", TASK_STATUS, self.dir]
