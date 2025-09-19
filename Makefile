@@ -3,6 +3,9 @@
 build:
 	python -m build
 
+install: 
+	pipx install dist/zettel-0.0.0.post9002.tar.gz --force
+
 release:
 	python -m twine upload dist/*
 
