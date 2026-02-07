@@ -198,6 +198,7 @@ def ss():
                 f"ctrl-x:execute-silent(zt copy --dir {notebook} {{}})",
                 f"f2:execute-silent(open -a iTerm $(dirname $(zt find --dir {notebook} {{}})))",
                 f"ctrl-s:execute-silent(subl $(zt find --dir {notebook} {{}}))",
+                "ctrl-z:clear-query",
             ]),
             header="(enter: Obsidian; f2: iTerm, ctrl+s: Sublime Text, ctrl+x: wikilink)",
         )
