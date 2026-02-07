@@ -196,7 +196,7 @@ def ss():
             keybinds=",".join([
                 f"enter:execute-silent(zt open --dir {notebook} --query {{q}} {{}})",
                 f"ctrl-x:execute-silent(zt copy --dir {notebook} {{}})",
-                f"f2:execute-silent(open -a iTerm $(dirname $(zt find --dir {notebook} {{}})))",
+                f"f2:execute-silent(open -n -a iTerm --args $(dirname $(zt find --dir {notebook} {{}})))",
                 f"ctrl-s:execute-silent(subl $(zt find --dir {notebook} {{}}))",
                 "ctrl-z:clear-query",
             ]),
