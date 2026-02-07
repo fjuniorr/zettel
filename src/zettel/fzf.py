@@ -7,10 +7,7 @@ from urllib.parse import quote
 
 import frontmatter
 
-COPY_KEYS = {"ctrl-x"}
-TERMINAL_KEYS = {"f2"}
-SUBLIME_KEYS = {"ctrl-s"}
-ACCEPTED_KEYS = COPY_KEYS | TERMINAL_KEYS | SUBLIME_KEYS | {"enter"}
+EXPECT_KEYS = {"enter", "ctrl-x"}
 
 
 class Note:
@@ -153,23 +150,15 @@ def get_titles(path):
         yield note.display_title
 
 
-def unpack_fzf_prompt(prompt):
+def parse_fzf_output(prompt):
     if not prompt:
-        return (None, None, None)
+        return (None, None)
 
     lines = prompt.split("\n")
-    key = None
-
-    for index, line in enumerate(list(lines[:2])):
-        if line in ACCEPTED_KEYS:
-            key = line
-            lines.pop(index)
-            break
-
-    query = lines[0] if lines else None
+    query = lines[0].strip() if lines and lines[0].strip() else None
     note_title = lines[1] if len(lines) > 1 and lines[1] else None
 
-    return (key, query, note_title)
+    return (query, note_title)
 
 
 def copy_to_clipboard(text):
@@ -190,76 +179,83 @@ def ss():
     home = Path("~")
     notebook = Path(home.expanduser(), "Notebook/")
 
-    while True:
-        result = fzf_prompt(
-            get_titles(notebook),
-            reversed_layout=True,
-            print_query=True,
-            match_exact=True,
-            preview_window_settings="down:60%",
-            preview=f"zt find --dir {notebook} {{}} | xargs glow --style dark",
-            expect_keys="enter,ctrl-x,f2,ctrl-s",
-            header="(enter: Obsidian; f2: iTerm, ctrl+s: Sublime Text, ctrl+x: wikilink)",
-        )
+    try:
+        while True:
+            result = fzf_prompt(
+                get_titles(notebook),
+                reversed_layout=True,
+                print_query=True,
+                match_exact=True,
+                preview_window_settings="down:60%",
+                preview=f"zt find --dir {notebook} {{}} | xargs glow --style dark",
+                expect_keys="enter,ctrl-x",
+                keybinds=",".join([
+                    f"f2:execute-silent(open -a iTerm $(dirname $(zt find --dir {notebook} {{}})))",
+                    f"ctrl-s:execute-silent(subl $(zt find --dir {notebook} {{}}))",
+                ]),
+                header="(enter: Obsidian; f2: iTerm, ctrl+s: Sublime Text, ctrl+x: wikilink)",
+            )
 
-        key_pressed, query, note_title = unpack_fzf_prompt(result)
-        matched_note = None
-        copy_requested = key_pressed in COPY_KEYS
-        terminal_requested = key_pressed in TERMINAL_KEYS
-        sublime_requested = key_pressed in SUBLIME_KEYS
-
-        for note in get_notes(notebook):
-            if note_title and (note_title == note.display_title):
-                matched_note = note
+            if not result:
                 break
 
-        if not note_title and query:
-            note_id = datetime.now().strftime("%Y%m%dT%H%M%S")
-            filepath = f"{note_id}/index"
-            content = f"# {query.lower()}\n\n"
-            encoded_content = quote(content, safe="")
-            params = [
-                ("vault", "510b22d0827fd8cf"),
-                ("filename", filepath),
-                ("openmode", "tab"),
-                ("viewmode", "source"),
-                ("data", encoded_content),
-            ]
-        elif matched_note:
-            filepath = str(matched_note.path.relative_to(notebook).with_suffix(""))
-            params = [
-                ("vault", "510b22d0827fd8cf"),
-                ("filename", filepath),
-                ("viewmode", "source"),
-                ("openmode", "tab"),
-            ]
-        else:
-            params = []
+            lines = result.split("\n")
+            key_pressed = None
+            for i, line in enumerate(lines[:2]):
+                if line in EXPECT_KEYS:
+                    key_pressed = line
+                    lines.pop(i)
+                    break
 
-        if copy_requested and matched_note:
-            if copy_to_clipboard(f"[[{filepath}|{matched_note.title}]]"):
-                print(f"Copied {filepath} to clipboard")
-            else:
-                print(f"Note ID: {filepath} (clipboard copy failed)")
-            continue
+            query, note_title = parse_fzf_output("\n".join(lines))
+            matched_note = None
 
-        if terminal_requested and matched_note:
-            note_dir = str(matched_note.path.parent)
-            subprocess.run(["open", "-a", "iTerm", note_dir])
-            continue
+            for note in get_notes(notebook):
+                if note_title and (note_title == note.display_title):
+                    matched_note = note
+                    break
 
-        if sublime_requested and matched_note:
-            subprocess.run(["subl", str(matched_note.path)])
-            continue
-
-        if params:
-            encoded_parts = []
-            for key, value in params:
-                encoded_key = quote(str(key), safe="")
-                if key == "data":
-                    encoded_value = value
+            if key_pressed == "ctrl-x" and matched_note:
+                filepath = str(matched_note.path.relative_to(notebook).with_suffix(""))
+                if copy_to_clipboard(f"[[{filepath}|{matched_note.title}]]"):
+                    print(f"Copied {filepath} to clipboard")
                 else:
-                    encoded_value = quote(str(value), safe="")
-                encoded_parts.append(f"{encoded_key}={encoded_value}")
-            obsidian_url = f"obsidian://adv-uri?{'&'.join(encoded_parts)}"
-            subprocess.run(["open", obsidian_url])
+                    print(f"Note ID: {filepath} (clipboard copy failed)")
+                continue
+
+            if not note_title and query:
+                note_id = datetime.now().strftime("%Y%m%dT%H%M%S")
+                filepath = f"{note_id}/index"
+                content = f"# {query.lower()}\n\n"
+                encoded_content = quote(content, safe="")
+                params = [
+                    ("vault", "510b22d0827fd8cf"),
+                    ("filename", filepath),
+                    ("openmode", "tab"),
+                    ("viewmode", "source"),
+                    ("data", encoded_content),
+                ]
+            elif matched_note:
+                filepath = str(matched_note.path.relative_to(notebook).with_suffix(""))
+                params = [
+                    ("vault", "510b22d0827fd8cf"),
+                    ("filename", filepath),
+                    ("viewmode", "source"),
+                    ("openmode", "tab"),
+                ]
+            else:
+                params = []
+
+            if params:
+                encoded_parts = []
+                for key, value in params:
+                    encoded_key = quote(str(key), safe="")
+                    if key == "data":
+                        encoded_value = value
+                    else:
+                        encoded_value = quote(str(value), safe="")
+                    encoded_parts.append(f"{encoded_key}={encoded_value}")
+                obsidian_url = f"obsidian://adv-uri?{'&'.join(encoded_parts)}"
+                subprocess.run(["open", obsidian_url])
+    except KeyboardInterrupt:
+        return None
