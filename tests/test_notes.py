@@ -15,3 +15,23 @@ def test_unicode_decode_error():
 def test_note_repr():
     note = Note('tests/notebook/20220822T111909.md')
     assert repr(note) == '[20220822T111909] python workouts - lerner2020 - ex 4.15'
+
+
+def test_index_note_id():
+    note = Note('tests/notebook/20250101T120000/index.md')
+    assert note.id == '20250101T120000'
+
+
+def test_index_note_title():
+    note = Note('tests/notebook/20250101T120000/index.md')
+    assert note.title == 'note inside timestamped folder'
+
+
+def test_index_note_tags():
+    note = Note('tests/notebook/20250101T120000/index.md')
+    assert note.tags == ['testing', 'index-note']
+
+
+def test_index_note_display_title():
+    note = Note('tests/notebook/20250101T120000/index.md')
+    assert note.display_title == 'note inside timestamped folder [#testing, #index-note]'

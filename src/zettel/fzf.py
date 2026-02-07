@@ -8,7 +8,9 @@ from urllib.parse import quote
 import frontmatter
 
 COPY_KEYS = {"ctrl-x"}
-ACCEPTED_KEYS = COPY_KEYS | {"enter"}
+TERMINAL_KEYS = {"f2"}
+SUBLIME_KEYS = {"ctrl-s"}
+ACCEPTED_KEYS = COPY_KEYS | TERMINAL_KEYS | SUBLIME_KEYS | {"enter"}
 
 
 class Note:
@@ -22,7 +24,7 @@ class Note:
         except UnicodeDecodeError as err:
             self.content = str(err)
         self._frontmatter_post = self._parse_frontmatter(self.content)
-        self.id = os.path.splitext(os.path.basename(self.path))[0]
+        self.id = self._extract_id(self.path)
         self.title = self._extract_title() or self.id
         self.tags = self._extract_tags(self._frontmatter_post)
         self.display_title = self._format_display_title(self.title, self.tags)
@@ -47,6 +49,12 @@ class Note:
             else self.content
         )
         return self._title_from_first_header(header_source)
+
+    @staticmethod
+    def _extract_id(path):
+        if path.name == "index.md":
+            return path.parent.name
+        return os.path.splitext(os.path.basename(path))[0]
 
     @staticmethod
     def _parse_frontmatter(content):
@@ -130,7 +138,7 @@ class Note:
 
 
 def get_files(path):
-    files = path.glob("*.md")
+    files = list(path.glob("*.md")) + list(path.glob("*/index.md"))
     sorted_by_mtime_descending = sorted(files, key=lambda t: -os.stat(t).st_mtime)
     return sorted_by_mtime_descending
 
@@ -185,51 +193,63 @@ def ss():
     while True:
         result = fzf_prompt(
             get_titles(notebook),
-            keybinds=f"f2:execute-silent(subl $(zt find --dir {notebook} {{}}))",
             reversed_layout=True,
             print_query=True,
             match_exact=True,
             preview_window_settings="down:60%",
             preview=f"zt find --dir {notebook} {{}} | xargs glow --style dark",
-            expect_keys="enter,ctrl-x",
-            header="(enter: Obsidian; f2: Sublime Text, ctrl+x: wikilink)",
+            expect_keys="enter,ctrl-x,f2,ctrl-s",
+            header="(enter: Obsidian; f2: iTerm, ctrl+s: Sublime Text, ctrl+x: wikilink)",
         )
 
         key_pressed, query, note_title = unpack_fzf_prompt(result)
-        note_id = None
+        matched_note = None
         copy_requested = key_pressed in COPY_KEYS
+        terminal_requested = key_pressed in TERMINAL_KEYS
+        sublime_requested = key_pressed in SUBLIME_KEYS
 
         for note in get_notes(notebook):
             if note_title and (note_title == note.display_title):
-                note_id = note.id
+                matched_note = note
                 break
 
         if not note_title and query:
             note_id = datetime.now().strftime("%Y%m%dT%H%M%S")
+            filepath = f"{note_id}/index"
             content = f"# {query.lower()}\n\n"
             encoded_content = quote(content, safe="")
             params = [
                 ("vault", "510b22d0827fd8cf"),
-                ("filename", note_id),
+                ("filename", filepath),
                 ("openmode", "tab"),
                 ("viewmode", "source"),
                 ("data", encoded_content),
             ]
-        elif note_id:
+        elif matched_note:
+            filepath = str(matched_note.path.relative_to(notebook).with_suffix(""))
             params = [
                 ("vault", "510b22d0827fd8cf"),
-                ("filename", note_id),
+                ("filename", filepath),
                 ("viewmode", "source"),
                 ("openmode", "tab"),
             ]
         else:
             params = []
 
-        if copy_requested and note_id:
-            if copy_to_clipboard(f"[[{note_id}|{note.title}]]"):
-                print(f"Copied {note_id} to clipboard")
+        if copy_requested and matched_note:
+            if copy_to_clipboard(f"[[{filepath}|{matched_note.title}]]"):
+                print(f"Copied {filepath} to clipboard")
             else:
-                print(f"Note ID: {note_id} (clipboard copy failed)")
+                print(f"Note ID: {filepath} (clipboard copy failed)")
+            continue
+
+        if terminal_requested and matched_note:
+            note_dir = str(matched_note.path.parent)
+            subprocess.run(["open", "-a", "iTerm", note_dir])
+            continue
+
+        if sublime_requested and matched_note:
+            subprocess.run(["subl", str(matched_note.path)])
             continue
 
         if params:

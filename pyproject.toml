@@ -12,7 +12,10 @@ dependencies = [
   'python-frontmatter',
 ]
 [dependency-groups]
-dev = ["build"]
+dev = [
+    "build",
+    "pytest>=9.0.2",
+]
 
 [build-system]
 requires = ["hatchling"]

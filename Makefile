@@ -1,13 +1,10 @@
-.PHONY: coverage
+.PHONY: install test coverage
 
-build:
-	python -m build
+install:
+	pipx install . --force
 
-install: 
-	pipx install dist/zettel-0.0.0.post9002.tar.gz --force
-
-release:
-	python -m twine upload dist/*
+test:
+	uv run pytest tests/test_notes.py tests/test_notebook.py
 
 coverage:
-	python -m pytest -s --cov-config=.coveragerc --cov-report html --cov-branch --cov=zettel tests/
+	uv run pytest -s --cov-config=.coveragerc --cov-report html --cov-branch --cov=zettel tests/
