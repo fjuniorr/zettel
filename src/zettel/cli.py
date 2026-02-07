@@ -8,7 +8,7 @@ from urllib.parse import quote
 import typer
 from typing_extensions import Annotated
 
-from .fzf import ss, copy_to_clipboard
+from .fzf import ss, copy_to_clipboard, get_titles
 from .notebook import Notebook
 from .notes import Note
 from .tasks import Task
@@ -114,5 +114,13 @@ def open_note(title: Annotated[Optional[str], typer.Argument()] = None,
         return
 
     subprocess.run(["open", _build_obsidian_url(params)])
+
+@app.command(name="list")
+def list_notes(dir: Annotated[Path, typer.Option(help='Notebook folder')] = Path('.')):
+    """
+    List all note titles.
+    """
+    for title in get_titles(dir):
+        print(title)
 
 app.command(name="search")(ss)
