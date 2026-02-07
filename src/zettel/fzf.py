@@ -1,14 +1,9 @@
 from pathlib import Path
 from fzf import fzf_prompt
-from datetime import datetime
 import os
 import subprocess
-from urllib.parse import quote
 
 import frontmatter
-
-EXPECT_KEYS = {"enter", "ctrl-x"}
-
 
 class Note:
     def __init__(self, path):
@@ -180,82 +175,20 @@ def ss():
     notebook = Path(home.expanduser(), "Notebook/")
 
     try:
-        while True:
-            result = fzf_prompt(
-                get_titles(notebook),
-                reversed_layout=True,
-                print_query=True,
-                match_exact=True,
-                preview_window_settings="down:60%",
-                preview=f"zt find --dir {notebook} {{}} | xargs glow --style dark",
-                expect_keys="enter,ctrl-x",
-                keybinds=",".join([
-                    f"f2:execute-silent(open -a iTerm $(dirname $(zt find --dir {notebook} {{}})))",
-                    f"ctrl-s:execute-silent(subl $(zt find --dir {notebook} {{}}))",
-                ]),
-                header="(enter: Obsidian; f2: iTerm, ctrl+s: Sublime Text, ctrl+x: wikilink)",
-            )
-
-            if not result:
-                break
-
-            lines = result.split("\n")
-            key_pressed = None
-            for i, line in enumerate(lines[:2]):
-                if line in EXPECT_KEYS:
-                    key_pressed = line
-                    lines.pop(i)
-                    break
-
-            query, note_title = parse_fzf_output("\n".join(lines))
-            matched_note = None
-
-            for note in get_notes(notebook):
-                if note_title and (note_title == note.display_title):
-                    matched_note = note
-                    break
-
-            if key_pressed == "ctrl-x" and matched_note:
-                filepath = str(matched_note.path.relative_to(notebook).with_suffix(""))
-                if copy_to_clipboard(f"[[{filepath}|{matched_note.title}]]"):
-                    print(f"Copied {filepath} to clipboard")
-                else:
-                    print(f"Note ID: {filepath} (clipboard copy failed)")
-                continue
-
-            if not note_title and query:
-                note_id = datetime.now().strftime("%Y%m%dT%H%M%S")
-                filepath = f"{note_id}/index"
-                content = f"# {query.lower()}\n\n"
-                encoded_content = quote(content, safe="")
-                params = [
-                    ("vault", "510b22d0827fd8cf"),
-                    ("filename", filepath),
-                    ("openmode", "tab"),
-                    ("viewmode", "source"),
-                    ("data", encoded_content),
-                ]
-            elif matched_note:
-                filepath = str(matched_note.path.relative_to(notebook).with_suffix(""))
-                params = [
-                    ("vault", "510b22d0827fd8cf"),
-                    ("filename", filepath),
-                    ("viewmode", "source"),
-                    ("openmode", "tab"),
-                ]
-            else:
-                params = []
-
-            if params:
-                encoded_parts = []
-                for key, value in params:
-                    encoded_key = quote(str(key), safe="")
-                    if key == "data":
-                        encoded_value = value
-                    else:
-                        encoded_value = quote(str(value), safe="")
-                    encoded_parts.append(f"{encoded_key}={encoded_value}")
-                obsidian_url = f"obsidian://adv-uri?{'&'.join(encoded_parts)}"
-                subprocess.run(["open", obsidian_url])
+        fzf_prompt(
+            get_titles(notebook),
+            reversed_layout=True,
+            print_query=True,
+            match_exact=True,
+            preview_window_settings="down:60%",
+            preview=f"zt find --dir {notebook} {{}} | xargs glow --style dark",
+            keybinds=",".join([
+                f"enter:execute-silent(zt open --dir {notebook} --query {{q}} {{}})",
+                f"ctrl-x:execute-silent(zt copy --dir {notebook} {{}})",
+                f"f2:execute-silent(open -a iTerm $(dirname $(zt find --dir {notebook} {{}})))",
+                f"ctrl-s:execute-silent(subl $(zt find --dir {notebook} {{}}))",
+            ]),
+            header="(enter: Obsidian; f2: iTerm, ctrl+s: Sublime Text, ctrl+x: wikilink)",
+        )
     except KeyboardInterrupt:
         return None
