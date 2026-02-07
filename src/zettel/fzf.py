@@ -1,6 +1,7 @@
 from pathlib import Path
 from fzf import fzf_prompt
 import os
+import re
 import subprocess
 
 import frontmatter
@@ -127,6 +128,16 @@ class Note:
 
         header_text = stripped.lstrip("#").strip()
         return header_text or None
+
+    @staticmethod
+    def strip_tags(text):
+        if not text:
+            return text
+        # Strip bracketed tags: " [#tag1, #tag2]"
+        result = re.sub(r'\s*\[#[^\]]*\]\s*$', '', text)
+        # Strip bare tags from the end: " #tag1, #tag2"
+        result = re.sub(r'(\s*,?\s*#[^\s,\[\]]+)+\s*$', '', result)
+        return result
 
 
 def get_files(path):
