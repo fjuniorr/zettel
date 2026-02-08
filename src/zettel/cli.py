@@ -57,7 +57,8 @@ def copy(title: Annotated[str, typer.Argument],
         print(f"Note not found: {title}", file=sys.stderr)
         raise typer.Exit(code=1)
     clean_title = Note.strip_tags(note.title)
-    if copy_to_clipboard(f"[[{note.id}|{clean_title}]]"):
+    link_id = f"{note.id}/index" if note.path.name == "index.md" else note.id
+    if copy_to_clipboard(f"[[{link_id}|{clean_title}]]"):
         print(f"Copied {note.id} to clipboard")
     else:
         print(f"Note ID: {note.id} (clipboard copy failed)")

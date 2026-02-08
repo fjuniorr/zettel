@@ -93,6 +93,30 @@ def test_cli_copy_uses_wikilink(monkeypatch, tmp_path):
     assert captured["text"] == "[[20240105T101010|Copy Title]]"
 
 
+def test_cli_copy_uses_folder_path_for_index_notes(monkeypatch, tmp_path):
+    note_dir = tmp_path / "notebook"
+    note_dir.mkdir()
+    folder = note_dir / "20240106T101010"
+    folder.mkdir()
+    content = """---\ntitle: Folder Note\n---\nBody\n"""
+    write_note(folder, "index.md", content)
+
+    captured = {}
+
+    def fake_copy(text):
+        captured["text"] = text
+        return True
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setattr("zettel.cli.copy_to_clipboard", fake_copy)
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["copy", "--dir", str(note_dir), "Folder Note"])
+
+    assert result.exit_code == 0
+    assert captured["text"] == "[[20240106T101010/index|Folder Note]]"
+
+
 def test_cli_copy_errors_when_note_missing(monkeypatch, tmp_path):
     note_dir = tmp_path / "notebook"
     note_dir.mkdir()
