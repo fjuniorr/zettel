@@ -197,10 +197,10 @@ def ss():
                 f"enter:execute-silent(zt open --dir {notebook} --query {{q}} {{}})+reload(zt list --dir {notebook})+clear-query",
                 f"ctrl-x:execute-silent(zt copy --dir {notebook} {{}})",
                 f"ctrl-t:execute-silent(open -a iTerm $(dirname $(zt find --dir {notebook} {{}})))",
-                f'ctrl-e:execute-silent(f=$(zt find --dir {notebook} {{}}); if [ "$(basename "$f")" = "index.md" ]; then code "$(dirname "$f")"; else code "$f"; fi)',
+                f'f2:execute-silent(f=$(zt find --dir {notebook} {{}}); if [ "$(basename "$f")" = "index.md" ]; then code "$(dirname "$f")"; else code "$f"; fi)',
                 "ctrl-z:clear-query",
             ]),
-            header="(enter: Obsidian; ctrl+t: iTerm, ctrl+e: VSCode, ctrl+x: wikilink)",
+            header="(enter: Obsidian; ctrl+t: iTerm, f2: VSCode, ctrl+x: wikilink)",
         )
     except KeyboardInterrupt:
         return None
