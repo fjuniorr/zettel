@@ -1,3 +1,4 @@
+import re
 import subprocess
 import sys
 from datetime import datetime
@@ -101,8 +102,17 @@ def open_note(title: Annotated[Optional[str], typer.Argument()] = None,
         ]
     elif query:
         note_id = datetime.now().strftime("%Y%m%dT%H%M%S")
-        filepath = f"{note_id}/index"
-        content = f"# {query.lower()}\n\n"
+        filepath = note_id
+        tags = re.findall(r'#(\S+)', query)
+        title = re.sub(r'\s*#\S+', '', query).strip().lower()
+        frontmatter_lines = ["---", f"title: {title}"]
+        if tags:
+            frontmatter_lines.append("tags:")
+            for tag in tags:
+                frontmatter_lines.append(f"  - {tag}")
+        frontmatter_lines.append("---")
+        frontmatter_lines.append("")
+        content = "\n".join(frontmatter_lines)
         encoded_content = quote(content, safe="")
         params = [
             ("vault", VAULT_ID),
