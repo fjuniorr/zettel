@@ -7,6 +7,7 @@ from typing import Optional
 from urllib.parse import quote
 
 import typer
+import yaml
 from typing_extensions import Annotated
 
 from .fzf import ss, copy_to_clipboard, get_titles
@@ -66,6 +67,17 @@ def copy(title: Annotated[str, typer.Argument],
 
 VAULT_ID = "510b22d0827fd8cf"
 
+def _yaml_quote(value):
+    """Add double quotes around a YAML value only when needed."""
+    try:
+        parsed = yaml.safe_load(f"v: {value}")
+        if isinstance(parsed, dict) and parsed.get("v") == value:
+            return value
+    except yaml.YAMLError:
+        pass
+    escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+    return f'"{escaped}"'
+
 def _build_obsidian_url(params):
     encoded_parts = []
     for key, value in params:
@@ -103,9 +115,15 @@ def open_note(title: Annotated[Optional[str], typer.Argument()] = None,
     elif query:
         note_id = datetime.now().strftime("%Y%m%dT%H%M%S")
         filepath = note_id
-        tags = re.findall(r'#(\S+)', query)
-        title = re.sub(r'\s*#\S+', '', query).strip().lower()
-        frontmatter_lines = ["---", f"title: {title}"]
+        tag_match = re.search(r'\[?#\S', query)
+        if tag_match:
+            tag_str = query[tag_match.start():].strip("[]")
+            tags = [t.strip().lstrip("#") for t in tag_str.split(",") if t.strip()]
+            title = query[:tag_match.start()].strip().lower()
+        else:
+            tags = []
+            title = query.strip().lower()
+        frontmatter_lines = ["---", f"title: {_yaml_quote(title)}"]
         if tags:
             frontmatter_lines.append("tags:")
             for tag in tags:
