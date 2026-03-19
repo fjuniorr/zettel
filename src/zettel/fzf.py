@@ -20,7 +20,8 @@ class Note:
         self.id = self._extract_id(self.path)
         self.title = self._extract_title() or self.id
         self.tags = self._extract_tags(self._frontmatter_post)
-        self.display_title = self._format_display_title(self.title, self.tags)
+        self.status = self._extract_status(self._frontmatter_post)
+        self.display_title = self._format_display_title(self.title, self.tags, self.status)
 
     def __repr__(self) -> str:
         return f"{self.id} {self.display_title}"
@@ -109,12 +110,23 @@ class Note:
         return deduped
 
     @staticmethod
-    def _format_display_title(title, tags):
+    def _extract_status(post):
+        if post is None or not isinstance(post.metadata, dict):
+            return None
+        status = post.metadata.get("status")
+        if isinstance(status, str) and status.strip():
+            return status.strip()
+        return None
+
+    @staticmethod
+    def _format_display_title(title, tags, status=None):
+        parts = [title]
         if tags:
             formatted_tags = ", ".join(f"#{tag}" for tag in tags)
-            return f"{title} [{formatted_tags}]"
-
-        return title
+            parts.append(f"[{formatted_tags}]")
+        if status:
+            parts.append(f"@{status}")
+        return " ".join(parts)
 
     @staticmethod
     def _title_from_first_header(content):
@@ -141,7 +153,11 @@ class Note:
 
 
 def get_files(path):
-    files = list(path.glob("*.md")) + list(path.glob("*/index.md"))
+    files = []
+    for subdir in [path / "Actions", path / "Reference"]:
+        if subdir.is_dir():
+            files.extend(subdir.glob("*.md"))
+            files.extend(subdir.glob("*/index.md"))
     sorted_by_mtime_descending = sorted(files, key=lambda t: -os.stat(t).st_mtime)
     return sorted_by_mtime_descending
 
@@ -151,9 +167,19 @@ def get_notes(path):
         yield Note(file)
 
 
+def _colorize_display(display_title, tags, status):
+    result = display_title
+    if tags:
+        formatted_tags = ", ".join(f"#{tag}" for tag in tags)
+        result = result.replace(f"[{formatted_tags}]", f"\033[35m[{formatted_tags}]\033[0m")
+    if status:
+        result = result.replace(f"@{status}", f"\033[36m@{status}\033[0m")
+    return result
+
+
 def get_titles(path):
     for note in get_notes(path):
-        yield note.display_title
+        yield _colorize_display(note.display_title, note.tags, note.status)
 
 
 def parse_fzf_output(prompt):
@@ -191,6 +217,8 @@ def ss():
             reversed_layout=True,
             print_query=True,
             match_exact=True,
+            ansi=True,
+            escape_output=False,
             preview_window_settings="down:60%",
             preview=f"zt find --dir {notebook} {{}} | xargs glow --style dark",
             keybinds=",".join([

@@ -67,6 +67,21 @@ def copy(title: Annotated[str, typer.Argument],
 
 VAULT_ID = "510b22d0827fd8cf"
 
+ACTION_TAGS = frozenset([
+    "@inbox", "@triage", "@focus", "@wip", "@next", "@todo", "@later",
+    "@backlog", "@someday", "@icebox", "@waiting", "@scheduled", "@due",
+    "@done", "@wontfix",
+])
+
+def _extract_action_tag(query):
+    """Extract action tag from query. Returns (status, cleaned_query)."""
+    for tag in ACTION_TAGS:
+        if tag in query:
+            cleaned = re.sub(r'\s*' + re.escape(tag) + r'\b', '', query).strip()
+            cleaned = re.sub(r'\s+', ' ', cleaned)
+            return tag.lstrip('@'), cleaned
+    return None, query
+
 def _yaml_quote(value):
     """Add double quotes around a YAML value only when needed."""
     try:
@@ -109,21 +124,28 @@ def open_note(title: Annotated[Optional[str], typer.Argument()] = None,
         params = [
             ("vault", VAULT_ID),
             ("filename", filepath),
-            ("viewmode", "source"),
+            ("viewmode", "preview"),
             ("openmode", "tab"),
         ]
     elif query:
         note_id = datetime.now().strftime("%Y%m%dT%H%M%S")
-        filepath = note_id
-        tag_match = re.search(r'\[?#\S', query)
+        status, clean_query = _extract_action_tag(query)
+        tag_match = re.search(r'\[?#\S', clean_query)
         if tag_match:
-            tag_str = query[tag_match.start():].strip("[]")
-            tags = [t.strip().lstrip("#") for t in tag_str.split(",") if t.strip()]
-            title = query[:tag_match.start()].strip().lower()
+            tag_str = clean_query[tag_match.start():].strip("[]")
+            all_tags = [t.strip().lstrip("#") for t in tag_str.split(",") if t.strip()]
+            title_base = clean_query[:tag_match.start()].strip().lower()
+            tags = [t for t in all_tags if not t.isdigit()]
+            numeric_refs = [f"#{t}" for t in all_tags if t.isdigit()]
+            title = f"{title_base} {' '.join(numeric_refs)}".strip() if numeric_refs else title_base
         else:
             tags = []
-            title = query.strip().lower()
+            title = clean_query.strip().lower()
+        subfolder = "Actions" if status else "Reference"
+        filepath = f"{subfolder}/{note_id}"
         frontmatter_lines = ["---", f"title: {_yaml_quote(title)}"]
+        if status:
+            frontmatter_lines.append(f"status: {status}")
         if tags:
             frontmatter_lines.append("tags:")
             for tag in tags:

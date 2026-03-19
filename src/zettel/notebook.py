@@ -15,7 +15,12 @@ class Notebook:
         files = (
             [Path(self.dir, note) for note in notes]
             if notes
-            else list(self.dir.glob('*.md')) + list(self.dir.glob('*/index.md'))
+            else [
+                f
+                for subdir in [self.dir / "Actions", self.dir / "Reference"]
+                if subdir.is_dir()
+                for f in list(subdir.glob('*.md')) + list(subdir.glob('*/index.md'))
+            ]
         )
         self.notes = self.read_notes(files)
     
