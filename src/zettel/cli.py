@@ -129,7 +129,12 @@ def open_note(title: Annotated[Optional[str], typer.Argument()] = None,
         ]
     elif query:
         note_id = datetime.now().strftime("%Y%m%dT%H%M%S")
+        leading_at = re.match(r'^@\s*', query)
+        if leading_at:
+            query = query[leading_at.end():]
         status, clean_query = _extract_action_tag(query)
+        if leading_at and not status:
+            status = "inbox"
         tag_match = re.search(r'\[?#\S', clean_query)
         if tag_match:
             tag_str = clean_query[tag_match.start():].strip("[]")
@@ -153,14 +158,11 @@ def open_note(title: Annotated[Optional[str], typer.Argument()] = None,
         frontmatter_lines.append("---")
         frontmatter_lines.append("")
         content = "\n".join(frontmatter_lines)
-        encoded_content = quote(content, safe="")
-        params = [
-            ("vault", VAULT_ID),
-            ("filename", filepath),
-            ("openmode", "tab"),
-            ("viewmode", "source"),
-            ("data", encoded_content),
-        ]
+        note_path = dir / f"{filepath}.md"
+        note_path.parent.mkdir(parents=True, exist_ok=True)
+        note_path.write_text(content)
+        print(f"{title}")
+        return
     else:
         return
 

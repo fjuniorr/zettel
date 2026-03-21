@@ -227,8 +227,9 @@ def ss():
                 f"ctrl-t:execute-silent(open -a iTerm $(dirname $(zt find --dir {notebook} {{}})))",
                 f'f2:execute-silent(f=$(zt find --dir {notebook} {{}}); if [ "$(basename "$f")" = "index.md" ]; then code "$(dirname "$f")"; else code "$f"; fi)',
                 "ctrl-z:clear-query",
+                f"ctrl-r:reload(zt list --dir {notebook})",
             ]),
-            header="(enter: Obsidian; ctrl+t: iTerm, f2: VSCode, ctrl+x: wikilink)",
+            header="(enter: Obsidian; ctrl+t: iTerm, f2: VSCode, ctrl+x: wikilink, ctrl+r: reload)",
         )
     except KeyboardInterrupt:
         return None
