@@ -138,13 +138,20 @@ def open_note(title: Annotated[Optional[str], typer.Argument()] = None,
         tag_match = re.search(r'\[?#\S', clean_query)
         if tag_match:
             tag_str = clean_query[tag_match.start():].strip("[]")
-            all_tags = [t.strip().lstrip("#") for t in tag_str.split(",") if t.strip()]
+            all_tags = [t.strip().lstrip("#") for t in re.split(r'[,\s]+(?=#)|,', tag_str) if t.strip()]
             title_base = clean_query[:tag_match.start()].strip().lower()
-            tags = [t for t in all_tags if not t.isdigit()]
+            tags = [t for t in all_tags if not t.isdigit() and "=" not in t]
+            props = {}
+            for t in all_tags:
+                if "=" in t and not t.isdigit():
+                    key, _, value = t.partition("=")
+                    if key and value:
+                        props[key] = value
             numeric_refs = [f"#{t}" for t in all_tags if t.isdigit()]
             title = f"{title_base} {' '.join(numeric_refs)}".strip() if numeric_refs else title_base
         else:
             tags = []
+            props = {}
             title = clean_query.strip().lower()
         subfolder = "Actions" if status else "Reference"
         filepath = f"{subfolder}/{note_id}"
@@ -155,6 +162,8 @@ def open_note(title: Annotated[Optional[str], typer.Argument()] = None,
             frontmatter_lines.append("tags:")
             for tag in tags:
                 frontmatter_lines.append(f"  - {tag}")
+        for key, value in props.items():
+            frontmatter_lines.append(f"{key}: {_yaml_quote(value)}")
         frontmatter_lines.append("---")
         frontmatter_lines.append("")
         content = "\n".join(frontmatter_lines)
