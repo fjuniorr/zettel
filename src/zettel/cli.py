@@ -17,11 +17,15 @@ from .tasks import Task
 
 app = typer.Typer()
 
+
 def validate_option(value: str):
     allowed_values = {"all", "open", "closed"}
     if value not in allowed_values:
-        raise typer.BadParameter(f"Invalid option. Allowed options are {', '.join(allowed_values)}")
+        raise typer.BadParameter(
+            f"Invalid option. Allowed options are {', '.join(allowed_values)}"
+        )
     return value
+
 
 @app.callback()
 def callback():
@@ -29,27 +33,37 @@ def callback():
     Plaintext personal information management.
     """
 
+
 @app.command()
-def tasks(dir: Annotated[Path, typer.Argument(help='Notebook folder')] = Path('.'), status: str = typer.Option(default="open", help="One of: all|open|closed", callback=validate_option)):
+def tasks(
+    dir: Annotated[Path, typer.Argument(help="Notebook folder")] = Path("."),
+    status: str = typer.Option(
+        default="open", help="One of: all|open|closed", callback=validate_option
+    ),
+):
     """
     Find all actions itens (todos) in folder
     """
     notebook = Notebook(dir)
     notebook.get_tasks()
 
+
 @app.command()
-def find(title: Annotated[str, typer.Argument],
-         dir: Annotated[Path, typer.Option(help='Notebook folder')] = Path('.')
-         ):
+def find(
+    title: Annotated[str, typer.Argument],
+    dir: Annotated[Path, typer.Option(help="Notebook folder")] = Path("."),
+):
     notebook = Notebook(dir)
     note = notebook.get_note_by_title(title)
     if note is not None:
         print(note.path)
 
+
 @app.command()
-def copy(title: Annotated[str, typer.Argument],
-         dir: Annotated[Path, typer.Option(help='Notebook folder')] = Path('.')
-         ):
+def copy(
+    title: Annotated[str, typer.Argument],
+    dir: Annotated[Path, typer.Option(help="Notebook folder")] = Path("."),
+):
     """
     Copy a wikilink for a note to the clipboard.
     """
@@ -65,22 +79,39 @@ def copy(title: Annotated[str, typer.Argument],
     else:
         print(f"Note ID: {note.id} (clipboard copy failed)")
 
+
 VAULT_ID = "510b22d0827fd8cf"
 
-ACTION_TAGS = frozenset([
-    "@inbox", "@triage", "@focus", "@wip", "@next", "@todo", "@later",
-    "@backlog", "@someday", "@icebox", "@waiting", "@scheduled", "@due",
-    "@done", "@wontfix",
-])
+ACTION_TAGS = frozenset(
+    [
+        "@inbox",
+        "@triage",
+        "@focus",
+        "@wip",
+        "@next",
+        "@todo",
+        "@later",
+        "@backlog",
+        "@someday",
+        "@icebox",
+        "@waiting",
+        "@scheduled",
+        "@due",
+        "@done",
+        "@wontfix",
+    ]
+)
+
 
 def _extract_action_tag(query):
     """Extract action tag from query. Returns (status, cleaned_query)."""
     for tag in ACTION_TAGS:
         if tag in query:
-            cleaned = re.sub(r'\s*' + re.escape(tag) + r'\b', '', query).strip()
-            cleaned = re.sub(r'\s+', ' ', cleaned)
-            return tag.lstrip('@'), cleaned
+            cleaned = re.sub(r"\s*" + re.escape(tag) + r"\b", "", query).strip()
+            cleaned = re.sub(r"\s+", " ", cleaned)
+            return tag.lstrip("@"), cleaned
     return None, query
+
 
 def _yaml_quote(value):
     """Add double quotes around a YAML value only when needed."""
@@ -93,6 +124,7 @@ def _yaml_quote(value):
     escaped = value.replace("\\", "\\\\").replace('"', '\\"')
     return f'"{escaped}"'
 
+
 def _build_obsidian_url(params):
     encoded_parts = []
     for key, value in params:
@@ -104,11 +136,13 @@ def _build_obsidian_url(params):
         encoded_parts.append(f"{encoded_key}={encoded_value}")
     return f"obsidian://adv-uri?{'&'.join(encoded_parts)}"
 
+
 @app.command(name="open")
-def open_note(title: Annotated[Optional[str], typer.Argument()] = None,
-              query: Annotated[Optional[str], typer.Option()] = None,
-              dir: Annotated[Path, typer.Option(help='Notebook folder')] = Path('.')
-              ):
+def open_note(
+    title: Annotated[Optional[str], typer.Argument()] = None,
+    query: Annotated[Optional[str], typer.Option()] = None,
+    dir: Annotated[Path, typer.Option(help="Notebook folder")] = Path("."),
+):
     """
     Open a note in Obsidian, or create a new one from a query.
     """
@@ -124,22 +158,26 @@ def open_note(title: Annotated[Optional[str], typer.Argument()] = None,
         params = [
             ("vault", VAULT_ID),
             ("filename", filepath),
-            ("viewmode", "preview"),
+            ("viewmode", "source"),
             ("openmode", "tab"),
         ]
     elif query:
         note_id = datetime.now().strftime("%Y%m%dT%H%M%S")
-        leading_at = re.match(r'^@\s*', query)
+        leading_at = re.match(r"^@\s*", query)
         if leading_at:
-            query = query[leading_at.end():]
+            query = query[leading_at.end() :]
         status, clean_query = _extract_action_tag(query)
         if leading_at and not status:
             status = "inbox"
-        tag_match = re.search(r'\[?#\S', clean_query)
+        tag_match = re.search(r"\[?#\S", clean_query)
         if tag_match:
-            tag_str = clean_query[tag_match.start():].strip("[]")
-            all_tags = [t.strip().lstrip("#") for t in re.split(r'[,\s]+(?=#)|,', tag_str) if t.strip()]
-            title_base = clean_query[:tag_match.start()].strip().lower()
+            tag_str = clean_query[tag_match.start() :].strip("[]")
+            all_tags = [
+                t.strip().lstrip("#")
+                for t in re.split(r"[,\s]+(?=#)|,", tag_str)
+                if t.strip()
+            ]
+            title_base = clean_query[: tag_match.start()].strip().lower()
             tags = [t for t in all_tags if not t.isdigit() and "=" not in t]
             props = {}
             for t in all_tags:
@@ -148,7 +186,11 @@ def open_note(title: Annotated[Optional[str], typer.Argument()] = None,
                     if key and value:
                         props[key] = value
             numeric_refs = [f"#{t}" for t in all_tags if t.isdigit()]
-            title = f"{title_base} {' '.join(numeric_refs)}".strip() if numeric_refs else title_base
+            title = (
+                f"{title_base} {' '.join(numeric_refs)}".strip()
+                if numeric_refs
+                else title_base
+            )
         else:
             tags = []
             props = {}
@@ -177,12 +219,14 @@ def open_note(title: Annotated[Optional[str], typer.Argument()] = None,
 
     subprocess.run(["open", _build_obsidian_url(params)])
 
+
 @app.command(name="list")
-def list_notes(dir: Annotated[Path, typer.Option(help='Notebook folder')] = Path('.')):
+def list_notes(dir: Annotated[Path, typer.Option(help="Notebook folder")] = Path(".")):
     """
     List all note titles.
     """
     for title in get_titles(dir):
         print(title)
+
 
 app.command(name="search")(ss)
