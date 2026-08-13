@@ -208,8 +208,7 @@ def copy_to_clipboard(text):
 
 
 def ss():
-    home = Path("~")
-    notebook = Path(home.expanduser(), "Notebook/")
+    notebook = Path(os.environ.get("ZETTEL_DIR", "~/Notebook")).expanduser()
 
     try:
         fzf_prompt(
