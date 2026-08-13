@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Optional
 from urllib.parse import quote
 
+import frontmatter
 import typer
 import yaml
 from typing_extensions import Annotated
@@ -227,6 +228,102 @@ def list_notes(dir: Annotated[Path, typer.Option(help="Notebook folder")] = Path
     """
     for title in get_titles(dir):
         print(title)
+
+
+def _find_note(notebook, identifier):
+    note = notebook.get_note_by_title(identifier)
+    if note is not None:
+        return note
+    for _, candidate in notebook.notes:
+        if candidate.id == identifier:
+            return candidate
+    return None
+
+
+def _extract_gist_id(gist_ref):
+    if not gist_ref:
+        return None
+    return str(gist_ref).rstrip("/").split("/")[-1] or None
+
+
+def _add_gist_tag(post):
+    raw = post.metadata.get("tags")
+    if raw is None:
+        existing = []
+    elif isinstance(raw, str):
+        existing = [t.strip().lstrip("#") for t in re.split(r"[,\s]+", raw) if t.strip()]
+    elif isinstance(raw, (list, tuple, set)):
+        existing = [str(t).strip().lstrip("#") for t in raw if str(t).strip()]
+    else:
+        existing = []
+    if "gist" not in existing:
+        existing.append("gist")
+    post.metadata["tags"] = existing
+
+
+@app.command()
+def share(
+    identifier: Annotated[
+        str, typer.Argument(help="Note ID (timestamp) or title to share as a gist")
+    ],
+    public: Annotated[
+        bool, typer.Option("--public", help="Make the gist public")
+    ] = False,
+    dir: Annotated[Path, typer.Option(help="Notebook folder")] = Path("."),
+):
+    """
+    Share a note as a GitHub gist via `gh`. Creates a secret gist by default,
+    or updates the existing one if the note has already been shared.
+    """
+    notebook = Notebook(dir)
+    note = _find_note(notebook, identifier)
+    if note is None:
+        print(f"Note not found: {identifier}", file=sys.stderr)
+        raise typer.Exit(code=1)
+
+    post = frontmatter.load(str(note.path))
+    gist_id = _extract_gist_id(post.metadata.get("gist"))
+
+    if gist_id:
+        result = subprocess.run(
+            ["gh", "gist", "edit", gist_id, str(note.path)],
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            print(
+                f"Failed to update gist: {result.stderr.strip() or result.stdout.strip()}",
+                file=sys.stderr,
+            )
+            raise typer.Exit(code=1)
+        print(f"Updated gist: {post.metadata['gist']}")
+        return
+
+    cmd = ["gh", "gist", "create", str(note.path)]
+    if public:
+        cmd.append("--public")
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        print(
+            f"Failed to create gist: {result.stderr.strip() or result.stdout.strip()}",
+            file=sys.stderr,
+        )
+        raise typer.Exit(code=1)
+
+    url = next(
+        (line.strip() for line in reversed(result.stdout.splitlines()) if line.strip()),
+        "",
+    )
+    if not url:
+        print("gh returned no gist URL", file=sys.stderr)
+        raise typer.Exit(code=1)
+
+    _add_gist_tag(post)
+    post.metadata.pop("gist", None)
+    post.metadata["gist"] = url
+    with open(note.path, "wb") as fh:
+        frontmatter.dump(post, fh, sort_keys=False)
+    print(f"Created gist: {url}")
 
 
 app.command(name="search")(ss)

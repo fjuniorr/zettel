@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 import pytest
@@ -142,3 +143,133 @@ def test_ss_handles_keyboard_interrupt(monkeypatch, tmp_path):
 
     # Should return without raising
     assert ss() is None
+
+
+class FakeRun:
+    def __init__(self, stdout="", stderr="", returncode=0):
+        self.stdout = stdout
+        self.stderr = stderr
+        self.returncode = returncode
+
+
+def _make_notebook(tmp_path):
+    actions = tmp_path / "Actions"
+    actions.mkdir(parents=True)
+    return tmp_path, actions
+
+
+def test_cli_share_creates_private_gist_by_default(monkeypatch, tmp_path):
+    note_dir, actions = _make_notebook(tmp_path)
+    content = """---\ntitle: Share Me\ntags:\n  - alpha\n---\nBody\n"""
+    note_path = write_note(actions, "20240201T101010.md", content)
+
+    calls = []
+
+    def fake_run(cmd, capture_output=False, text=False):
+        calls.append(cmd)
+        return FakeRun(stdout="https://gist.github.com/user/abc123\n")
+
+    monkeypatch.setattr("zettel.cli.subprocess.run", fake_run)
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["share", "--dir", str(note_dir), "Share Me"])
+
+    assert result.exit_code == 0, result.output
+    assert calls == [["gh", "gist", "create", str(note_path)]]
+    assert "https://gist.github.com/user/abc123" in result.stdout
+
+    import frontmatter as fm
+
+    post = fm.load(str(note_path))
+    assert post.metadata["gist"] == "https://gist.github.com/user/abc123"
+    assert "gist" in post.metadata["tags"]
+    assert list(post.metadata.keys())[-1] == "gist"
+
+    raw = note_path.read_text()
+    # gist should be the final key line before the closing "---"
+    metadata_block = raw.split("---", 2)[1]
+    last_key_line = [
+        line for line in metadata_block.strip().splitlines() if re.match(r"^\S", line)
+    ][-1]
+    assert last_key_line.startswith("gist:")
+
+
+def test_cli_share_public_flag_adds_public(monkeypatch, tmp_path):
+    note_dir, actions = _make_notebook(tmp_path)
+    content = """---\ntitle: Public Note\n---\nBody\n"""
+    note_path = write_note(actions, "20240202T101010.md", content)
+
+    calls = []
+
+    def fake_run(cmd, capture_output=False, text=False):
+        calls.append(cmd)
+        return FakeRun(stdout="https://gist.github.com/user/pub999\n")
+
+    monkeypatch.setattr("zettel.cli.subprocess.run", fake_run)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        app, ["share", "--dir", str(note_dir), "--public", "Public Note"]
+    )
+
+    assert result.exit_code == 0, result.output
+    assert calls == [["gh", "gist", "create", str(note_path), "--public"]]
+
+
+def test_cli_share_updates_existing_gist(monkeypatch, tmp_path):
+    note_dir, actions = _make_notebook(tmp_path)
+    content = (
+        "---\n"
+        "title: Already Shared\n"
+        "gist: https://gist.github.com/user/deadbeef\n"
+        "---\n"
+        "Body\n"
+    )
+    note_path = write_note(actions, "20240203T101010.md", content)
+
+    calls = []
+
+    def fake_run(cmd, capture_output=False, text=False):
+        calls.append(cmd)
+        return FakeRun(stdout="")
+
+    monkeypatch.setattr("zettel.cli.subprocess.run", fake_run)
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["share", "--dir", str(note_dir), "20240203T101010"])
+
+    assert result.exit_code == 0, result.output
+    assert calls == [["gh", "gist", "edit", "deadbeef", str(note_path)]]
+    assert "Updated gist" in result.stdout
+
+
+def test_cli_share_errors_when_note_missing(monkeypatch, tmp_path):
+    note_dir, _ = _make_notebook(tmp_path)
+
+    def fail_run(*args, **kwargs):
+        raise AssertionError("gh should not be invoked when the note is missing")
+
+    monkeypatch.setattr("zettel.cli.subprocess.run", fail_run)
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["share", "--dir", str(note_dir), "Nope"])
+
+    assert result.exit_code != 0
+    assert "not found" in (result.stderr or "").lower()
+
+
+def test_cli_share_propagates_gh_failure(monkeypatch, tmp_path):
+    note_dir, actions = _make_notebook(tmp_path)
+    content = """---\ntitle: Fails\n---\nBody\n"""
+    write_note(actions, "20240204T101010.md", content)
+
+    def fake_run(cmd, capture_output=False, text=False):
+        return FakeRun(stderr="gh: not authenticated\n", returncode=1)
+
+    monkeypatch.setattr("zettel.cli.subprocess.run", fake_run)
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["share", "--dir", str(note_dir), "Fails"])
+
+    assert result.exit_code != 0
+    assert "not authenticated" in (result.stderr or "").lower()
