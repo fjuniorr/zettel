@@ -223,7 +223,7 @@ wheels = [
 
 [[package]]
 name = "zettel"
-version = "0.0.0.post9003"
+version = "0.0.0.post9004"
 source = { editable = "." }
 dependencies = [
     { name = "humanize" },

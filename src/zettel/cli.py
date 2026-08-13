@@ -3,13 +3,12 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Annotated, Optional
 from urllib.parse import quote
 
 import frontmatter
 import typer
 import yaml
-from typing_extensions import Annotated
 
 from .fzf import ss, copy_to_clipboard, get_titles
 from .notebook import Notebook
