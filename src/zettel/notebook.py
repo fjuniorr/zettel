@@ -1,4 +1,5 @@
 from pathlib import Path
+from .fzf import NOTES_DIR, iter_note_files
 from .notes import Note
 from .tasks import Task, TASK_STATUS
 from .utils import unpack_fzf_prompt
@@ -13,14 +14,9 @@ class Notebook:
             raise NotADirectoryError(f'{dir} is not a directory.') 
         self.dir = Path(dir)
         files = (
-            [Path(self.dir, note) for note in notes]
+            [self.dir / NOTES_DIR / note for note in notes]
             if notes
-            else [
-                f
-                for subdir in [self.dir / "Actions", self.dir / "Reference"]
-                if subdir.is_dir()
-                for f in list(subdir.glob('*.md')) + list(subdir.glob('*/index.md'))
-            ]
+            else list(iter_note_files(self.dir))
         )
         self.notes = self.read_notes(files)
     

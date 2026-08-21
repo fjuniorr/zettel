@@ -10,7 +10,7 @@ import frontmatter
 import typer
 import yaml
 
-from .fzf import ss, copy_to_clipboard, get_titles
+from .fzf import NOTES_DIR, ss, copy_to_clipboard, get_titles
 from .notebook import Notebook
 from .notes import Note
 from .tasks import Task
@@ -195,8 +195,7 @@ def open_note(
             tags = []
             props = {}
             title = clean_query.strip().lower()
-        subfolder = "Actions" if status else "Reference"
-        filepath = f"{subfolder}/{note_id}"
+        filepath = f"{NOTES_DIR}/{note_id}"
         frontmatter_lines = ["---", f"title: {_yaml_quote(title)}"]
         if status:
             frontmatter_lines.append(f"status: {status}")

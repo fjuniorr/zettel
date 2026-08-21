@@ -5,7 +5,7 @@ import pytest
 from typer.testing import CliRunner
 
 from zettel.cli import app
-from zettel.fzf import Note, parse_fzf_output, ss
+from zettel.fzf import NOTES_DIR, Note, parse_fzf_output, ss
 from zettel.notebook import Notebook
 
 
@@ -61,9 +61,9 @@ def test_parse_fzf_output(prompt, expected):
 
 def test_notebook_matches_display_title_and_plain_title(tmp_path):
     note_dir = tmp_path / "notebook"
-    note_dir.mkdir()
+    (note_dir / NOTES_DIR).mkdir(parents=True)
     content = """---\ntitle: Display Title\ntags:\n  - alpha\n---\nBody\n"""
-    write_note(note_dir, "20240104T101010.md", content)
+    write_note(note_dir / NOTES_DIR, "20240104T101010.md", content)
 
     notebook = Notebook(note_dir)
     stored_note = next(iter(notebook.notes))[1]
@@ -74,9 +74,9 @@ def test_notebook_matches_display_title_and_plain_title(tmp_path):
 
 def test_cli_copy_uses_wikilink(monkeypatch, tmp_path):
     note_dir = tmp_path / "notebook"
-    note_dir.mkdir()
+    (note_dir / NOTES_DIR).mkdir(parents=True)
     content = """---\ntitle: Copy Title\n---\nBody\n"""
-    write_note(note_dir, "20240105T101010.md", content)
+    write_note(note_dir / NOTES_DIR, "20240105T101010.md", content)
 
     captured = {}
 
@@ -96,9 +96,8 @@ def test_cli_copy_uses_wikilink(monkeypatch, tmp_path):
 
 def test_cli_copy_uses_folder_path_for_index_notes(monkeypatch, tmp_path):
     note_dir = tmp_path / "notebook"
-    note_dir.mkdir()
-    folder = note_dir / "20240106T101010"
-    folder.mkdir()
+    folder = note_dir / NOTES_DIR / "20240106T101010"
+    folder.mkdir(parents=True)
     content = """---\ntitle: Folder Note\n---\nBody\n"""
     write_note(folder, "index.md", content)
 
@@ -120,7 +119,7 @@ def test_cli_copy_uses_folder_path_for_index_notes(monkeypatch, tmp_path):
 
 def test_cli_copy_errors_when_note_missing(monkeypatch, tmp_path):
     note_dir = tmp_path / "notebook"
-    note_dir.mkdir()
+    (note_dir / NOTES_DIR).mkdir(parents=True)
 
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.setattr("zettel.cli.copy_to_clipboard", lambda text: True)
@@ -153,9 +152,9 @@ class FakeRun:
 
 
 def _make_notebook(tmp_path):
-    actions = tmp_path / "Actions"
-    actions.mkdir(parents=True)
-    return tmp_path, actions
+    notes = tmp_path / NOTES_DIR
+    notes.mkdir(parents=True)
+    return tmp_path, notes
 
 
 def test_cli_share_creates_private_gist_by_default(monkeypatch, tmp_path):

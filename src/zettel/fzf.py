@@ -6,6 +6,9 @@ import subprocess
 
 import frontmatter
 
+NOTES_DIR = "notes"
+
+
 class Note:
     def __init__(self, path):
         self.path = Path(path)
@@ -152,12 +155,17 @@ class Note:
         return result
 
 
+def iter_note_files(path):
+    """Yield every note in the notebook: flat notes and folder notes."""
+    subdir = Path(path) / NOTES_DIR
+    if not subdir.is_dir():
+        return
+    yield from subdir.glob("*.md")
+    yield from subdir.glob("*/index.md")
+
+
 def get_files(path):
-    files = []
-    for subdir in [path / "Actions", path / "Reference"]:
-        if subdir.is_dir():
-            files.extend(subdir.glob("*.md"))
-            files.extend(subdir.glob("*/index.md"))
+    files = list(iter_note_files(path))
     sorted_by_mtime_descending = sorted(files, key=lambda t: -os.stat(t).st_mtime)
     return sorted_by_mtime_descending
 

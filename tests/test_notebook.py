@@ -13,7 +13,7 @@ def test_init(notebook):
 
 def test_not_directory_error():
     with pytest.raises(NotADirectoryError):
-        notebook = Notebook('tests/notebook/notes')
+        notebook = Notebook('tests/notebook/notes/20220822T111909.md')
 
 def test_read_notes_full_dir(notebook):
     notes = list(notebook.notes)
@@ -33,5 +33,5 @@ def test_get_note_by_title_exists_false(notebook):
     assert note is None
 
 def test_notes(notebook):
-    note = Note(sorted(Path('tests/notebook').glob('*.md'), key = lambda x: x.stat().st_mtime, reverse = True)[0])
+    note = Note(sorted(Path('tests/notebook/notes').glob('*.md'), key = lambda x: x.stat().st_mtime, reverse = True)[0])
     assert True
