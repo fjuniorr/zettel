@@ -7,6 +7,7 @@ import subprocess
 import frontmatter
 
 NOTES_DIR = "notes"
+PROPERTY_KEYS = ("org", "project")
 
 
 class Note:
@@ -24,7 +25,10 @@ class Note:
         self.title = self._extract_title() or self.id
         self.tags = self._extract_tags(self._frontmatter_post)
         self.status = self._extract_status(self._frontmatter_post)
-        self.display_title = self._format_display_title(self.title, self.tags, self.status)
+        self.properties = self._extract_properties(self._frontmatter_post)
+        self.display_title = self._format_display_title(
+            self.title, self.tags, self.status, self.properties
+        )
 
     def __repr__(self) -> str:
         return f"{self.id} {self.display_title}"
@@ -73,44 +77,68 @@ class Note:
         return None
 
     @staticmethod
-    def _extract_tags(post):
-        if post is None or not isinstance(post.metadata, dict):
+    def _coerce_values(raw):
+        """Normalize a frontmatter value into a deduplicated list of strings."""
+        if raw is None:
             return []
 
-        raw_tags = post.metadata.get("tags")
-        if not raw_tags:
-            return []
-
-        if isinstance(raw_tags, str):
-            raw_string = raw_tags.strip()
+        if isinstance(raw, str):
+            raw_string = raw.strip()
             if not raw_string:
                 return []
             if "," in raw_string:
                 candidates = [part.strip() for part in raw_string.split(",")]
             else:
                 candidates = [raw_string]
-        elif isinstance(raw_tags, (list, tuple, set)):
-            candidates = list(raw_tags)
+        elif isinstance(raw, (list, tuple, set)):
+            candidates = list(raw)
+        elif isinstance(raw, (int, float)) and not isinstance(raw, bool):
+            candidates = [str(raw)]
         else:
             return []
 
-        tags = []
-        for tag in candidates:
-            if isinstance(tag, str):
-                stripped = tag.strip()
-                if stripped:
-                    normalized = stripped.lstrip("#")
-                    if normalized:
-                        tags.append(normalized)
-
-        deduped = []
+        values = []
         seen = set()
-        for tag in tags:
-            if tag not in seen:
-                deduped.append(tag)
-                seen.add(tag)
+        for candidate in candidates:
+            if isinstance(candidate, str):
+                stripped = candidate.strip()
+            elif isinstance(candidate, (int, float)) and not isinstance(candidate, bool):
+                stripped = str(candidate)
+            else:
+                continue
+            if stripped and stripped not in seen:
+                values.append(stripped)
+                seen.add(stripped)
 
-        return deduped
+        return values
+
+    @staticmethod
+    def _extract_tags(post):
+        if post is None or not isinstance(post.metadata, dict):
+            return []
+
+        tags = []
+        seen = set()
+        for value in Note._coerce_values(post.metadata.get("tags")):
+            normalized = value.lstrip("#")
+            if normalized and normalized not in seen:
+                tags.append(normalized)
+                seen.add(normalized)
+
+        return tags
+
+    @staticmethod
+    def _extract_properties(post):
+        """Collect the configured frontmatter properties as (key, value) pairs."""
+        if post is None or not isinstance(post.metadata, dict):
+            return []
+
+        properties = []
+        for key in PROPERTY_KEYS:
+            for value in Note._coerce_values(post.metadata.get(key)):
+                properties.append((key, value))
+
+        return properties
 
     @staticmethod
     def _extract_status(post):
@@ -122,13 +150,15 @@ class Note:
         return None
 
     @staticmethod
-    def _format_display_title(title, tags, status=None):
+    def _format_display_title(title, tags, status=None, properties=None):
         parts = [title]
         if tags:
             formatted_tags = ", ".join(f"#{tag}" for tag in tags)
             parts.append(f"[{formatted_tags}]")
         if status:
             parts.append(f"@{status}")
+        for key, value in properties or []:
+            parts.append(f"{key}/{value}")
         return " ".join(parts)
 
     @staticmethod
@@ -175,19 +205,26 @@ def get_notes(path):
         yield Note(file)
 
 
-def _colorize_display(display_title, tags, status):
+def _colorize_display(display_title, tags, status, properties=None):
     result = display_title
     if tags:
         formatted_tags = ", ".join(f"#{tag}" for tag in tags)
         result = result.replace(f"[{formatted_tags}]", f"\033[35m[{formatted_tags}]\033[0m")
     if status:
         result = result.replace(f"@{status}", f"\033[36m@{status}\033[0m")
+    for key, value in properties or []:
+        formatted_property = f"{key}/{value}"
+        result = result.replace(
+            formatted_property, f"\033[33m{formatted_property}\033[0m", 1
+        )
     return result
 
 
 def get_titles(path):
     for note in get_notes(path):
-        yield _colorize_display(note.display_title, note.tags, note.status)
+        yield _colorize_display(
+            note.display_title, note.tags, note.status, note.properties
+        )
 
 
 def parse_fzf_output(prompt):

@@ -5,7 +5,7 @@ import pytest
 from typer.testing import CliRunner
 
 from zettel.cli import app
-from zettel.fzf import NOTES_DIR, Note, parse_fzf_output, ss
+from zettel.fzf import NOTES_DIR, Note, _colorize_display, parse_fzf_output, ss
 from zettel.notebook import Notebook
 
 
@@ -272,3 +272,59 @@ def test_cli_share_propagates_gh_failure(monkeypatch, tmp_path):
 
     assert result.exit_code != 0
     assert "not authenticated" in (result.stderr or "").lower()
+
+
+def test_note_display_title_includes_org_and_project(tmp_path):
+    content = (
+        "---\ntitle: Property Title\ntags:\n  - alpha\nstatus: wip\n"
+        "org: acme\nproject: zettel\n---\nBody\n"
+    )
+    note_path = write_note(tmp_path, "20240110T101010.md", content)
+
+    note = Note(note_path)
+
+    assert note.properties == [("org", "acme"), ("project", "zettel")]
+    assert (
+        note.display_title == "Property Title [#alpha] @wip org/acme project/zettel"
+    )
+
+
+def test_note_supports_multiple_property_values(tmp_path):
+    content = "---\ntitle: Multi\norg: acme, globex\nproject:\n  - one\n  - two\n---\n"
+    note_path = write_note(tmp_path, "20240111T101010.md", content)
+
+    note = Note(note_path)
+
+    assert note.properties == [
+        ("org", "acme"),
+        ("org", "globex"),
+        ("project", "one"),
+        ("project", "two"),
+    ]
+    assert note.display_title == "Multi org/acme org/globex project/one project/two"
+
+
+def test_colorize_display_uses_shared_color_for_properties():
+    display_title = "Title [#alpha] @wip org/acme project/zettel"
+
+    colorized = _colorize_display(
+        display_title, ["alpha"], "wip", [("org", "acme"), ("project", "zettel")]
+    )
+
+    assert colorized == (
+        "Title \033[35m[#alpha]\033[0m \033[36m@wip\033[0m "
+        "\033[33morg/acme\033[0m \033[33mproject/zettel\033[0m"
+    )
+
+
+def test_notebook_matches_display_title_with_properties(tmp_path):
+    note_dir = tmp_path / "notebook"
+    (note_dir / NOTES_DIR).mkdir(parents=True)
+    content = "---\ntitle: Linked Note\norg: acme\nproject: zettel\n---\nBody\n"
+    write_note(note_dir / NOTES_DIR, "20240112T101010.md", content)
+
+    notebook = Notebook(note_dir)
+    stored_note = next(iter(notebook.notes))[1]
+
+    assert stored_note.display_title == "Linked Note org/acme project/zettel"
+    assert notebook.get_note_by_title(stored_note.display_title).id == stored_note.id
