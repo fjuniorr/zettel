@@ -10,7 +10,17 @@ import frontmatter
 import typer
 import yaml
 
-from .fzf import NOTES_DIR, ss, copy_to_clipboard, get_titles
+from .fzf import (
+    NOTES_DIR,
+    ss,
+    copy_to_clipboard,
+    get_titles,
+    pick_first_field,
+    project_filter_query,
+    project_lines,
+    tag_filter_query,
+    tag_lines,
+)
 from .notebook import Notebook
 from .notes import Note
 from .tasks import Task
@@ -82,35 +92,53 @@ def copy(
 
 VAULT_ID = "510b22d0827fd8cf"
 
-ACTION_TAGS = frozenset(
-    [
-        "@inbox",
-        "@triage",
-        "@focus",
-        "@wip",
-        "@next",
-        "@todo",
-        "@later",
-        "@backlog",
-        "@someday",
-        "@icebox",
-        "@waiting",
-        "@scheduled",
-        "@due",
-        "@done",
-        "@wontfix",
-    ]
+ACTION_STATUSES = (
+    "inbox",
+    "triage",
+    "focus",
+    "wip",
+    "todo",
+    "todo/next",
+    "todo/later",
+    "backlog",
+    "backlog/someday",
+    "icebox",
+    "waiting",
+    "scheduled",
+    "due",
+    "done",
+    "wontfix",
 )
+
+ACTION_TAG_ALIASES = {
+    "next": "todo/next",
+    "later": "todo/later",
+    "someday": "backlog/someday",
+}
 
 
 def _extract_action_tag(query):
-    """Extract action tag from query. Returns (status, cleaned_query)."""
-    for tag in ACTION_TAGS:
-        if tag in query:
-            cleaned = re.sub(r"\s*" + re.escape(tag) + r"\b", "", query).strip()
-            cleaned = re.sub(r"\s+", " ", cleaned)
-            return tag.lstrip("@"), cleaned
-    return None, query
+    """Extract action tags from query. Returns (status, cleaned_query).
+
+    Every action tag is removed from the query; the first one wins.
+    """
+    tokens = {status: status for status in ACTION_STATUSES}
+    tokens.update(ACTION_TAG_ALIASES)
+    # Longest alternative first so @todo/later is not consumed by @todo.
+    alternatives = "|".join(
+        re.escape(token) for token in sorted(tokens, key=len, reverse=True)
+    )
+    found = []
+
+    def _capture(match):
+        found.append(match.group(1))
+        return ""
+
+    cleaned = re.sub(r"\s*@(" + alternatives + r")\b", _capture, query)
+    if not found:
+        return None, query
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    return tokens[found[0]], cleaned
 
 
 def _yaml_quote(value):
@@ -163,12 +191,12 @@ def open_note(
         ]
     elif query:
         note_id = datetime.now().strftime("%Y%m%dT%H%M%S")
-        leading_at = re.match(r"^@\s*", query)
-        if leading_at:
-            query = query[leading_at.end() :]
         status, clean_query = _extract_action_tag(query)
-        if leading_at and not status:
-            status = "inbox"
+        leading_at = re.match(r"^@\s*", clean_query)
+        if leading_at:
+            clean_query = clean_query[leading_at.end() :]
+            if not status:
+                status = "inbox"
         tag_match = re.search(r"\[?#\S", clean_query)
         if tag_match:
             tag_str = clean_query[tag_match.start() :].strip("[]")
@@ -322,6 +350,48 @@ def share(
     with open(note.path, "wb") as fh:
         frontmatter.dump(post, fh, sort_keys=False)
     print(f"Created gist: {url}")
+
+
+@app.command()
+def projects(dir: Annotated[Path, typer.Option(help="Notebook folder")] = Path(".")):
+    """
+    List projects with note counts and the orgs they appear with.
+    """
+    for line in project_lines(dir):
+        print(line)
+
+
+@app.command(name="tags")
+def list_tags(dir: Annotated[Path, typer.Option(help="Notebook folder")] = Path(".")):
+    """
+    List tags with note counts.
+    """
+    for line in tag_lines(dir):
+        print(line)
+
+
+@app.command(name="pick-project")
+def pick_project(
+    dir: Annotated[Path, typer.Option(help="Notebook folder")] = Path("."),
+):
+    """
+    Pick a project in fzf and print a query that filters notes to it.
+    """
+    name = pick_first_field(project_lines(dir), "project> ")
+    if name:
+        print(project_filter_query(name))
+
+
+@app.command(name="pick-tag")
+def pick_tag(
+    dir: Annotated[Path, typer.Option(help="Notebook folder")] = Path("."),
+):
+    """
+    Pick a tag in fzf and print a query that filters notes to it.
+    """
+    name = pick_first_field(tag_lines(dir), "tag> ")
+    if name:
+        print(tag_filter_query(name))
 
 
 app.command(name="search")(ss)

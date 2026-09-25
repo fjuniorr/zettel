@@ -5,7 +5,17 @@ import pytest
 from typer.testing import CliRunner
 
 from zettel.cli import app
-from zettel.fzf import NOTES_DIR, Note, _colorize_display, parse_fzf_output, ss
+from zettel.fzf import (
+    NOTES_DIR,
+    Note,
+    _colorize_display,
+    parse_fzf_output,
+    project_filter_query,
+    project_lines,
+    ss,
+    tag_filter_query,
+    tag_lines,
+)
 from zettel.notebook import Notebook
 
 
@@ -315,6 +325,96 @@ def test_colorize_display_uses_shared_color_for_properties():
         "Title \033[35m[#alpha]\033[0m \033[36m@wip\033[0m "
         "\033[33morg/acme\033[0m \033[33mproject/zettel\033[0m"
     )
+
+
+@pytest.mark.parametrize(
+    "query,expected_status,expected_title",
+    [
+        ("@later buy milk", "todo/later", "buy milk"),
+        ("@todo/later buy milk", "todo/later", "buy milk"),
+        ("buy milk @next", "todo/next", "buy milk"),
+        ("@todo/next buy milk", "todo/next", "buy milk"),
+        ("@someday learn rust", "backlog/someday", "learn rust"),
+        ("@backlog/someday learn rust", "backlog/someday", "learn rust"),
+        ("@backlog clean garage", "backlog", "clean garage"),
+        ("@todo write docs", "todo", "write docs"),
+        ("@wip fix thing", "wip", "fix thing"),
+        ("@ fix thing", "inbox", "fix thing"),
+        ("@ fix thing @wip", "wip", "fix thing"),
+        ("@wip fix thing @later", "wip", "fix thing"),
+    ],
+)
+def test_cli_open_query_action_tags(tmp_path, query, expected_status, expected_title):
+    import frontmatter as fm
+
+    note_dir, notes = _make_notebook(tmp_path)
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["open", "--dir", str(note_dir), "--query", query])
+
+    assert result.exit_code == 0, result.output
+    created = list(notes.glob("*.md"))
+    assert len(created) == 1
+    post = fm.load(str(created[0]))
+    assert post.metadata.get("status") == expected_status
+    assert post.metadata.get("title") == expected_title
+
+
+def test_project_lines_aggregates_counts_and_orgs(tmp_path):
+    note_dir, notes = _make_notebook(tmp_path)
+    write_note(notes, "20240301T101010.md", "---\ntitle: A\nproject: zettel\norg: acme\n---\n")
+    write_note(notes, "20240302T101010.md", "---\ntitle: B\nproject: zettel\norg: globex\n---\n")
+    write_note(notes, "20240303T101010.md", "---\ntitle: C\nproject: site\n---\n")
+    write_note(notes, "20240304T101010.md", "---\ntitle: D\n---\n")
+
+    assert list(project_lines(note_dir)) == [
+        "zettel\t(2)\t[acme, globex]",
+        "site\t(1)",
+    ]
+
+
+def test_tag_lines_counts_notes_per_tag(tmp_path):
+    note_dir, notes = _make_notebook(tmp_path)
+    write_note(notes, "20240305T101010.md", "---\ntitle: A\ntags:\n  - go\n  - work\n---\n")
+    write_note(notes, "20240306T101010.md", "---\ntitle: B\ntags:\n  - go\n---\n")
+
+    assert list(tag_lines(note_dir)) == ["go\t(2)", "work\t(1)"]
+
+
+def test_project_filter_query_escapes_spaces():
+    assert project_filter_query("zettel") == "project/zettel"
+    assert project_filter_query("my proj") == "project/my\\ proj"
+
+
+def test_tag_filter_query_prefixes_hash():
+    assert tag_filter_query("go") == "#go"
+
+
+def test_cli_pick_project_prints_filter_query(monkeypatch, tmp_path):
+    note_dir, notes = _make_notebook(tmp_path)
+    write_note(notes, "20240307T101010.md", "---\ntitle: A\nproject: zettel\n---\n")
+
+    monkeypatch.setattr(
+        "zettel.cli.pick_first_field", lambda lines, prompt: "zettel"
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["pick-project", "--dir", str(note_dir)])
+
+    assert result.exit_code == 0
+    assert result.stdout.strip() == "project/zettel"
+
+
+def test_cli_pick_tag_prints_nothing_when_cancelled(monkeypatch, tmp_path):
+    note_dir, _ = _make_notebook(tmp_path)
+
+    monkeypatch.setattr("zettel.cli.pick_first_field", lambda lines, prompt: None)
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["pick-tag", "--dir", str(note_dir)])
+
+    assert result.exit_code == 0
+    assert result.stdout == ""
 
 
 def test_notebook_matches_display_title_with_properties(tmp_path):

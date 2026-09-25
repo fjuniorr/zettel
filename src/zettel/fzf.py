@@ -227,6 +227,82 @@ def get_titles(path):
         )
 
 
+def collect_projects(path):
+    """Map each project value to its note count and the unique orgs it appears with."""
+    projects = {}
+    for note in get_notes(path):
+        orgs = [value for key, value in note.properties if key == "org"]
+        for key, value in note.properties:
+            if key != "project":
+                continue
+            entry = projects.setdefault(value, {"count": 0, "orgs": set()})
+            entry["count"] += 1
+            entry["orgs"].update(orgs)
+    return projects
+
+
+def collect_tags(path):
+    """Map each tag to the number of notes carrying it."""
+    tags = {}
+    for note in get_notes(path):
+        for tag in note.tags:
+            tags[tag] = tags.get(tag, 0) + 1
+    return tags
+
+
+def project_lines(path):
+    """Tab-separated picker lines: name, note count, unique orgs."""
+    projects = collect_projects(path)
+    for name in sorted(projects, key=lambda n: (-projects[n]["count"], n.lower())):
+        entry = projects[name]
+        line = f"{name}\t({entry['count']})"
+        if entry["orgs"]:
+            orgs = ", ".join(sorted(entry["orgs"], key=str.lower))
+            line += f"\t[{orgs}]"
+        yield line
+
+
+def tag_lines(path):
+    """Tab-separated picker lines: name, note count."""
+    tags = collect_tags(path)
+    for name in sorted(tags, key=lambda n: (-tags[n], n.lower())):
+        yield f"{name}\t({tags[name]})"
+
+
+def _escape_query_term(value):
+    return value.replace("\\", "\\\\").replace(" ", "\\ ")
+
+
+def project_filter_query(name):
+    return f"project/{_escape_query_term(name)}"
+
+
+def tag_filter_query(name):
+    return f"#{_escape_query_term(name)}"
+
+
+def pick_first_field(lines, prompt):
+    """Run a nested fzf over lines; return the first tab field of the selection."""
+    joined = "\n".join(lines)
+    if not joined:
+        return None
+    try:
+        result = subprocess.run(
+            ["fzf", "--reverse", "--exact", f"--prompt={prompt}"],
+            input=joined,
+            stdout=subprocess.PIPE,
+            text=True,
+        )
+    except FileNotFoundError:
+        return None
+    if result.returncode != 0:
+        return None
+    selection = result.stdout.rstrip("\n")
+    if not selection:
+        return None
+    return selection.split("\t")[0]
+
+
 def parse_fzf_output(prompt):
     if not prompt:
         return (None, None)
@@ -254,6 +330,10 @@ def copy_to_clipboard(text):
 
 def ss():
     notebook = Path(os.environ.get("ZETTEL_DIR", "~/Notebook")).expanduser()
+    pick_file = '"${TMPDIR:-/tmp}/zt-pick-query"'
+    apply_pick = (
+        f"transform-query([ -s {pick_file} ] && cat {pick_file} || echo {{q}})"
+    )
 
     try:
         fzf_prompt(
@@ -269,12 +349,13 @@ def ss():
                 f"enter:execute-silent(zt open --dir {notebook} --query {{q}} {{}})+reload(zt list --dir {notebook})+clear-query",
                 f"ctrl-x:execute-silent(zt copy --dir {notebook} {{}})",
                 f"ctrl-s:execute-silent(zt share --dir {notebook} {{}})+reload(zt list --dir {notebook})",
-                f"ctrl-t:execute-silent(open -a iTerm $(dirname $(zt find --dir {notebook} {{}})))",
                 f'f2:execute-silent(f=$(zt find --dir {notebook} {{}}); if [ "$(basename "$f")" = "index.md" ]; then code "$(dirname "$f")"; else code "$f"; fi)',
                 "ctrl-z:clear-query",
                 f"ctrl-r:reload(zt list --dir {notebook})",
+                f"ctrl-p:execute(zt pick-project --dir {notebook} > {pick_file})+{apply_pick}",
+                f"ctrl-t:execute(zt pick-tag --dir {notebook} > {pick_file})+{apply_pick}",
             ]),
-            header="(enter: Obsidian; ctrl+t: iTerm, f2: VSCode, ctrl+x: wikilink, ctrl+s: gist, ctrl+r: reload)",
+            header="(enter: Obsidian; f2: VSCode, ctrl+x: wikilink, ctrl+s: gist, ctrl+r: reload, ctrl+p: project, ctrl+t: tag)",
         )
     except KeyboardInterrupt:
         return None
