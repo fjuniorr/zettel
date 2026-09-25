@@ -128,6 +128,62 @@ def test_cli_copy_uses_folder_path_for_index_notes(monkeypatch, tmp_path):
     assert captured["text"] == "[[20240106T101010/index|Folder Note]]"
 
 
+def test_readme_folder_note_is_searchable_and_uses_folder_path(monkeypatch, tmp_path):
+    notebook_dir = tmp_path / "notebook"
+    folder = notebook_dir / NOTES_DIR / "20260925T100304-api-gateway"
+    folder.mkdir(parents=True)
+    readme = write_note(folder, "README.md", "# API gateway\n")
+    flat_readme = write_note(notebook_dir / NOTES_DIR, "README.md", "# Flat readme\n")
+
+    notebook = Notebook(notebook_dir)
+    folder_note = notebook.get_note_by_title("API gateway")
+    assert folder_note.id == folder.name
+    assert folder_note.path == readme
+    assert notebook.get_note_by_title("Flat readme").id == flat_readme.stem
+
+    runner = CliRunner()
+    found = runner.invoke(app, ["find", "API gateway", "--dir", str(notebook_dir)])
+    assert found.exit_code == 0, found.output
+    assert found.stdout.strip() == str(readme)
+
+    copied = {}
+    monkeypatch.setattr("zettel.cli.copy_to_clipboard", lambda text: copied.setdefault("link", text))
+    result = runner.invoke(app, ["copy", "API gateway", "--dir", str(notebook_dir)])
+    assert result.exit_code == 0, result.output
+    assert copied["link"] == f"[[{folder.name}/README|API gateway]]"
+
+    opened = []
+    monkeypatch.setattr("zettel.cli.subprocess.run", lambda command: opened.append(command))
+    result = runner.invoke(app, ["open", "API gateway", "--dir", str(notebook_dir)])
+    assert result.exit_code == 0, result.output
+    assert f"notes%2F{folder.name}%2FREADME" in opened[0][1]
+
+    captured = {}
+
+    def fake_fzf_prompt(titles, **kwargs):
+        captured["titles"] = list(titles)
+        captured.update(kwargs)
+
+    monkeypatch.delenv("ZETTEL_DIR", raising=False)
+    monkeypatch.chdir(notebook_dir)
+    monkeypatch.setattr("zettel.fzf.fzf_prompt", fake_fzf_prompt)
+    result = runner.invoke(app, ["search"])
+    assert result.exit_code == 0, result.output
+    assert "API gateway" in captured["titles"]
+    assert '"README.md"' in captured["keybinds"]
+
+
+def test_folder_prefers_index_over_readme(tmp_path):
+    folder = tmp_path / NOTES_DIR / "20260925T100304"
+    folder.mkdir(parents=True)
+    index = write_note(folder, "index.md", "# Index title\n")
+    write_note(folder, "README.md", "# README title\n")
+
+    notes = Notebook(tmp_path).notes
+    assert len(notes) == 1
+    assert notes[0][1].path == index
+
+
 def test_cli_copy_errors_when_note_missing(monkeypatch, tmp_path):
     note_dir = tmp_path / "notebook"
     (note_dir / NOTES_DIR).mkdir(parents=True)

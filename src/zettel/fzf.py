@@ -8,7 +8,15 @@ import subprocess
 import frontmatter
 
 NOTES_DIR = "notes"
+FOLDER_NOTE_FILES = ("index.md", "README.md")
 PROPERTY_KEYS = ("org", "project")
+
+
+def is_folder_note_path(path):
+    path = Path(path)
+    return path.name == "index.md" or (
+        path.name == "README.md" and path.parent.parent.name == NOTES_DIR
+    )
 
 
 class Note:
@@ -54,7 +62,7 @@ class Note:
 
     @staticmethod
     def _extract_id(path):
-        if path.name == "index.md":
+        if is_folder_note_path(path):
             return path.parent.name
         return os.path.splitext(os.path.basename(path))[0]
 
@@ -192,7 +200,14 @@ def iter_note_files(path):
     if not subdir.is_dir():
         return
     yield from subdir.glob("*.md")
-    yield from subdir.glob("*/index.md")
+    for folder in subdir.iterdir():
+        if not folder.is_dir():
+            continue
+        for name in FOLDER_NOTE_FILES:
+            entry = folder / name
+            if entry.is_file():
+                yield entry
+                break
 
 
 def get_files(path):
@@ -356,7 +371,7 @@ def ss():
                 f"enter:execute-silent(zt open --dir {notebook_arg} --query {{q}} {{}})+reload(zt list --dir {notebook_arg})+clear-query",
                 f"ctrl-x:execute-silent(zt copy --dir {notebook_arg} {{}})",
                 f"ctrl-s:execute-silent(zt share --dir {notebook_arg} {{}})+reload(zt list --dir {notebook_arg})",
-                f'f2:execute-silent(f=$(zt find --dir {notebook_arg} {{}}); if [ "$(basename "$f")" = "index.md" ]; then code "$(dirname "$f")"; else code "$f"; fi)',
+                f'f2:execute-silent(f=$(zt find --dir {notebook_arg} {{}}); if [ "$(basename "$f")" = "index.md" ]; then code "$(dirname "$f")"; elif [ "$(basename "$f")" = "README.md" ] && [ "$(basename "$(dirname "$(dirname "$f")")")" = "notes" ]; then code "$(dirname "$f")"; else code "$f"; fi)',
                 "ctrl-z:clear-query",
                 f"ctrl-r:reload(zt list --dir {notebook_arg})",
                 f"ctrl-p:execute(zt pick-project --dir {notebook_arg} > {pick_file})+{apply_pick}",

@@ -15,6 +15,7 @@ from .fzf import (
     ss,
     copy_to_clipboard,
     get_titles,
+    is_folder_note_path,
     pick_first_field,
     project_filter_query,
     project_lines,
@@ -83,7 +84,7 @@ def copy(
         print(f"Note not found: {title}", file=sys.stderr)
         raise typer.Exit(code=1)
     clean_title = Note.strip_tags(note.title)
-    link_id = f"{note.id}/index" if note.path.name == "index.md" else note.id
+    link_id = f"{note.id}/{note.path.stem}" if is_folder_note_path(note.path) else note.id
     if copy_to_clipboard(f"[[{link_id}|{clean_title}]]"):
         print(f"Copied {note.id} to clipboard")
     else:
