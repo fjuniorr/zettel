@@ -2,6 +2,7 @@ from pathlib import Path
 from fzf import fzf_prompt
 import os
 import re
+import shlex
 import subprocess
 
 import frontmatter
@@ -329,7 +330,13 @@ def copy_to_clipboard(text):
 
 
 def ss():
-    notebook = Path(os.environ.get("ZETTEL_DIR", "~/Notebook")).expanduser()
+    if "ZETTEL_DIR" in os.environ:
+        notebook = Path(os.environ["ZETTEL_DIR"]).expanduser()
+    elif (Path.cwd() / NOTES_DIR).is_dir():
+        notebook = Path.cwd()
+    else:
+        notebook = Path("~/Notebook").expanduser()
+    notebook_arg = shlex.quote(str(notebook))
     pick_file = '"${TMPDIR:-/tmp}/zt-pick-query"'
     apply_pick = (
         f"transform-query([ -s {pick_file} ] && cat {pick_file} || echo {{q}})"
@@ -344,16 +351,16 @@ def ss():
             ansi=True,
             escape_output=False,
             preview_window_settings="down:60%",
-            preview=f"zt find --dir {notebook} {{}} | xargs glow --style dark",
+            preview=f"zt find --dir {notebook_arg} {{}} | xargs glow --style dark",
             keybinds=",".join([
-                f"enter:execute-silent(zt open --dir {notebook} --query {{q}} {{}})+reload(zt list --dir {notebook})+clear-query",
-                f"ctrl-x:execute-silent(zt copy --dir {notebook} {{}})",
-                f"ctrl-s:execute-silent(zt share --dir {notebook} {{}})+reload(zt list --dir {notebook})",
-                f'f2:execute-silent(f=$(zt find --dir {notebook} {{}}); if [ "$(basename "$f")" = "index.md" ]; then code "$(dirname "$f")"; else code "$f"; fi)',
+                f"enter:execute-silent(zt open --dir {notebook_arg} --query {{q}} {{}})+reload(zt list --dir {notebook_arg})+clear-query",
+                f"ctrl-x:execute-silent(zt copy --dir {notebook_arg} {{}})",
+                f"ctrl-s:execute-silent(zt share --dir {notebook_arg} {{}})+reload(zt list --dir {notebook_arg})",
+                f'f2:execute-silent(f=$(zt find --dir {notebook_arg} {{}}); if [ "$(basename "$f")" = "index.md" ]; then code "$(dirname "$f")"; else code "$f"; fi)',
                 "ctrl-z:clear-query",
-                f"ctrl-r:reload(zt list --dir {notebook})",
-                f"ctrl-p:execute(zt pick-project --dir {notebook} > {pick_file})+{apply_pick}",
-                f"ctrl-t:execute(zt pick-tag --dir {notebook} > {pick_file})+{apply_pick}",
+                f"ctrl-r:reload(zt list --dir {notebook_arg})",
+                f"ctrl-p:execute(zt pick-project --dir {notebook_arg} > {pick_file})+{apply_pick}",
+                f"ctrl-t:execute(zt pick-tag --dir {notebook_arg} > {pick_file})+{apply_pick}",
             ]),
             header="(enter: Obsidian; f2: VSCode, ctrl+x: wikilink, ctrl+s: gist, ctrl+r: reload, ctrl+p: project, ctrl+t: tag)",
         )

@@ -1,4 +1,5 @@
 import re
+import shlex
 from pathlib import Path
 
 import pytest
@@ -152,6 +153,47 @@ def test_ss_handles_keyboard_interrupt(monkeypatch, tmp_path):
 
     # Should return without raising
     assert ss() is None
+
+
+@pytest.mark.parametrize("source", ["local", "fallback", "env"])
+def test_search_selects_notebook(monkeypatch, tmp_path, source):
+    project = tmp_path / "project with spaces"
+    project.mkdir()
+    fallback = tmp_path / "Notebook"
+    (fallback / NOTES_DIR).mkdir(parents=True)
+    write_note(fallback / NOTES_DIR, "20240101T101010.md", "# Fallback note")
+
+    if source != "fallback":
+        (project / NOTES_DIR).mkdir()
+        write_note(project / NOTES_DIR, "20240101T101010.md", "# Local note")
+
+    if source == "env":
+        selected = tmp_path / "configured notebook"
+        (selected / NOTES_DIR).mkdir(parents=True)
+        write_note(selected / NOTES_DIR, "20240101T101010.md", "# Configured note")
+        monkeypatch.setenv("ZETTEL_DIR", str(selected))
+    else:
+        monkeypatch.delenv("ZETTEL_DIR", raising=False)
+        selected = project if source == "local" else fallback
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.chdir(project)
+    captured = {}
+
+    def fake_fzf_prompt(titles, **kwargs):
+        captured["titles"] = list(titles)
+        captured.update(kwargs)
+
+    monkeypatch.setattr("zettel.fzf.fzf_prompt", fake_fzf_prompt)
+
+    result = CliRunner().invoke(app, ["search"])
+
+    assert result.exit_code == 0, result.output
+    expected_title = {"local": "Local", "fallback": "Fallback", "env": "Configured"}[source]
+    assert captured["titles"] == [f"{expected_title} note"]
+    notebook_arg = shlex.quote(str(selected))
+    assert f"zt find --dir {notebook_arg}" in captured["preview"]
+    assert f"zt list --dir {notebook_arg}" in captured["keybinds"]
 
 
 class FakeRun:
